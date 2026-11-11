@@ -1,536 +1,392 @@
-import React, { useState, useEffect } from 'react';
-import { 
-  Upload, FileText, CheckCircle2, AlertTriangle, Clock, ChevronRight, ChevronDown, 
-  RefreshCw, Layers, ShieldCheck, Database, Trash2, CheckSquare, Square, Eye, Sparkles
-} from 'lucide-react';
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Credit Assessment & Document Pendency Engine</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Inter Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+    </style>
+</head>
+<body class="bg-slate-100 min-h-screen flex flex-col text-slate-800">
 
-export default function App() {
-  const [activeProfile, setActiveProfile] = useState('New Client Analysis');
-  const [isCloudAIEnabled, setIsCloudAIEnabled] = useState(true);
-  const [selectedUploadType, setSelectedUploadType] = useState('auto');
-  const [expandedDocId, setExpandedDocId] = useState(null);
+    <!-- Top Header -->
+    <header class="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between shadow-sm">
+        <div class="flex items-center space-x-3">
+            <div class="bg-blue-600 text-white p-2 rounded-xl shadow-md">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
+            </div>
+            <div>
+                <h1 class="text-xl font-bold text-slate-900 tracking-tight">Credit Assessment</h1>
+                <p class="text-xs text-slate-500">Document Pendency Engine & Multi-GSTIN Separation</p>
+            </div>
+        </div>
+        <div class="flex items-center space-x-4">
+            <div class="text-xs font-semibold bg-slate-100 border border-slate-200 px-3 py-1.5 rounded-lg text-slate-700">
+                Active Profile: <span id="activeProfileLabel" class="text-blue-600 font-bold">New Client Analysis</span>
+            </div>
+            <select id="profileSelect" onchange="changeProfile(this.value)" class="text-xs bg-slate-900 text-white font-medium px-3 py-2 rounded-lg shadow-sm focus:outline-none cursor-pointer">
+                <option value="New Client Analysis">New Client Analysis</option>
+                <option value="Existing Corporate Review">Existing Corporate Review</option>
+            </select>
+        </div>
+    </header>
 
-  const [documents, setDocuments] = useState([
-    { id: 1, name: 'GST Certificate & MSME (UDAYAM)', status: 'PENDING', remarks: 'Missing', months: [], uploadedFiles: [] },
-    { id: 2, name: 'Last 2 years CA & customer signed financials', status: 'PENDING', remarks: 'Missing: FY 2024-25, FY 2025-26', months: [], uploadedFiles: [], gridMonths: ['FY 2024-25', 'FY 2025-26'] },
-    { id: 3, name: 'Provisional Last year till March', status: 'PENDING', remarks: 'Missing: Apr 2025 to Mar 2026', months: [], uploadedFiles: [], gridMonths: ['Apr 2025', 'May 2025', 'Jun 2025', 'Jul 2025', 'Aug 2025', 'Sep 2025', 'Oct 2025', 'Nov 2025', 'Dec 2025', 'Jan 2026', 'Feb 2026', 'Mar 2026'] },
-    { id: 4, name: 'GSTR 3B (Last 24 months)', status: 'PENDING', remarks: 'Missing: Nov 2024 to Oct 2026', months: [], uploadedFiles: [], gridMonths: ['Nov 2024', 'Dec 2024', 'Jan 2025', 'Feb 2025', 'Mar 2025', 'Apr 2025', 'May 2025', 'Jun 2025', 'Jul 2025', 'Aug 2025', 'Sep 2025', 'Oct 2025', 'Nov 2025', 'Dec 2025', 'Jan 2026', 'Feb 2026', 'Mar 2026', 'Apr 2026', 'May 2026', 'Jun 2026', 'Jul 2026', 'Aug 2026', 'Sep 2026', 'Oct 2026'] },
-    { id: 5, name: 'Bank statements (Last 12 months)', status: 'PENDING', remarks: 'Missing: Nov 2025 to Oct 2026', months: [], uploadedFiles: [], gridMonths: ['Nov 2025', 'Dec 2025', 'Jan 2026', 'Feb 2026', 'Mar 2026', 'Apr 2026', 'May 2026', 'Jun 2026', 'Jul 2026', 'Aug 2026', 'Sep 2026', 'Oct 2026'] }
-  ]);
-
-  const [logs, setLogs] = useState([
-    { id: 1, text: 'System initialized. Ready for multi-GSTIN ingestion & Cloud AI verification.', status: 'READY' }
-  ]);
-
-  const addLog = (text, status = 'INFO') => {
-    setLogs(prev => [{ id: Date.now() + Math.random(), text, status }, ...prev.slice(0, 15)]);
-  };
-
-  const updateFileState = (fileId, newProps) => {
-    setDocuments(prev => prev.map(doc => ({
-      ...doc,
-      uploadedFiles: doc.uploadedFiles.map(f => f.id === fileId ? { ...f, ...newProps } : f)
-    })));
-  };
-
-  const simulateFileAnalysis = (fileObj) => {
-    return new Promise((resolve) => {
-      const fileId = fileObj.id;
-      updateFileState(fileId, { status: 'processing', progress: 40 });
-
-      setTimeout(() => {
-        const fileName = fileObj.name.toLowerCase();
-        let foundMonths = [];
-        let extractedGstin = '29AITPG6097N2Z4';
+    <!-- Main Layout -->
+    <main class="flex-1 p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 max-w-[1600px] mx-auto w-full">
         
-        // Extract GSTIN if present in filename
-        const gstinMatch = fileName.match(/([0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1})/i);
-        if (gstinMatch) {
-          extractedGstin = gstinMatch[1].toUpperCase();
-        } else if (fileName.includes('29bjmpg')) {
-          extractedGstin = '29BJMPG7066C1Z1';
-        }
+        <!-- Left Column: AI Ingestion & Logs -->
+        <div class="lg:col-span-5 flex flex-col space-y-6">
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex flex-col">
+                <div class="flex items-center space-x-2 mb-4">
+                    <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                    <h2 class="text-base font-bold text-slate-900">AI Document Engine</h2>
+                </div>
 
-        let allMonths = [
-          { key: 'nov 2024', label: 'Nov 2024' }, { key: 'dec 2024', label: 'Dec 2024' },
-          { key: 'jan 2025', label: 'Jan 2025' }, { key: 'feb 2025', label: 'Feb 2025' }, { key: 'mar 2025', label: 'Mar 2025' }, { key: 'apr 2025', label: 'Apr 2025' }, { key: 'may 2025', label: 'May 2025' }, { key: 'jun 2025', label: 'Jun 2025' }, { key: 'jul 2025', label: 'Jul 2025' }, { key: 'aug 2025', label: 'Aug 2025' }, { key: 'sep 2025', label: 'Sep 2025' }, { key: 'oct 2025', label: 'Oct 2025' },
-          { key: 'nov 2025', label: 'Nov 2025' }, { key: 'dec 2025', label: 'Dec 2025' },
-          { key: 'jan 2026', label: 'Jan 2026' }, { key: 'feb 2026', label: 'Feb 2026' }, { key: 'mar 2026', label: 'Mar 2026' }, { key: 'apr 2026', label: 'Apr 2026' }, { key: 'may 2026', label: 'May 2026' }, { key: 'jun 2026', label: 'Jun 2026' }, { key: 'jul 2026', label: 'Jul 2026' }, { key: 'aug 2026', label: 'Aug 2026' }, { key: 'sep 2026', label: 'Sep 2026' }, { key: 'oct 2026', label: 'Oct 2026' }
+                <label class="border-2 border-dashed border-slate-300 hover:border-blue-500 rounded-2xl p-8 flex flex-col items-center justify-center cursor-pointer bg-slate-50/50 transition-all group">
+                    <div class="bg-blue-50 group-hover:bg-blue-100 text-blue-600 p-4 rounded-full mb-3 transition-colors">
+                        <svg class="w-8 h-8" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+                    </div>
+                    <span class="text-sm font-bold text-slate-700 mb-1">Upload Multi-GSTIN GSTR-3B & Statements</span>
+                    <span class="text-xs text-slate-400 text-center">Engine automatically reads GSTINs and separates results per GST number</span>
+                    <input type="file" multiple id="fileInput" onchange="handleFileUpload(event)" class="hidden" />
+                </label>
+
+                <div class="mt-4 pt-4 border-t border-slate-100">
+                    <label class="text-xs font-semibold text-slate-600 block mb-1.5">FORCE DOCUMENT ASSIGNMENT</label>
+                    <select id="forceAssignment" class="w-full bg-slate-50 border border-slate-200 text-slate-700 text-xs rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="auto">Auto-Detect via AI Engine (Recommended)</option>
+                        <option value="1">GST Certificate & MSME (UDAYAM)</option>
+                        <option value="2">Last 2 years CA & customer signed financials</option>
+                        <option value="3">Provisional Last year till March</option>
+                        <option value="4">GSTR 3B (Last 24 months)</option>
+                        <option value="5">Bank statements (Last 12 months)</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Verification Logs Console -->
+            <div class="bg-slate-900 rounded-2xl shadow-sm border border-slate-800 p-4 flex flex-col flex-1 min-h-[240px]">
+                <div class="flex items-center justify-between mb-3 border-b border-slate-800 pb-2">
+                    <div class="flex items-center space-x-2 text-xs font-mono text-slate-400">
+                        <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"></path></svg>
+                        <span>verification_logs.exe</span>
+                    </div>
+                    <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-emerald-500/15 text-emerald-400">ACTIVE</span>
+                </div>
+                <div id="logsContainer" class="flex-1 overflow-y-auto space-y-2 font-mono text-xs max-h-[300px]">
+                    <div class="p-2.5 bg-slate-950/80 rounded-xl border border-slate-800/60 flex items-center justify-between">
+                        <span class="text-slate-300 truncate pr-2">System initialized. Ready for multi-GSTIN ingestion & Cloud AI verification.</span>
+                        <span class="text-[10px] font-bold px-2 py-0.5 rounded bg-blue-500/20 text-blue-400">READY</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column: Verified Document Checklist & Tables -->
+        <div class="lg:col-span-7 flex flex-col space-y-6">
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex flex-col">
+                <div class="flex items-center justify-between mb-4">
+                    <div>
+                        <h2 class="text-lg font-bold text-slate-900">Verified Document Checklist</h2>
+                        <p id="checklistSummary" class="text-xs text-slate-500">Active Profile: New Client Analysis — 0 Verified, 5 Pending</p>
+                    </div>
+                    <button onclick="copyChecklist()" class="flex items-center space-x-1.5 text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-2 rounded-xl transition-colors">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path></svg>
+                        <span>Copy List</span>
+                    </button>
+                </div>
+
+                <div id="documentsContainer" class="space-y-3">
+                    <!-- Rendered via JavaScript -->
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <script>
+        const monthNamesList = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        
+        const generateGrid = (startMonth, startYear, count) => {
+            let res = [];
+            let m = startMonth; // 0-11
+            let y = startYear;
+            for(let i=0; i<count; i++) {
+                res.push(`${monthNamesList[m]} ${y}`);
+                m++;
+                if(m > 11) { m = 0; y++; }
+            }
+            return res;
+        };
+
+        let documents = [
+            { id: 1, name: 'GST Certificate & MSME (UDAYAM)', status: 'PENDING', remarks: 'Missing', months: [], uploadedFiles: [] },
+            { id: 2, name: 'Last 2 years CA & customer signed financials', status: 'PENDING', remarks: 'Missing: FY 2024-25, FY 2025-26', months: [], uploadedFiles: [], gridMonths: ['FY 2024-25', 'FY 2025-26'] },
+            { id: 3, name: 'Provisional Last year till March', status: 'PENDING', remarks: 'Missing: Apr 2025 to Mar 2026', months: [], uploadedFiles: [], gridMonths: generateGrid(3, 2025, 12) },
+            { id: 4, name: 'GSTR 3B (Last 24 months)', status: 'PENDING', remarks: 'Missing: Nov 2024 to Oct 2026', months: [], uploadedFiles: [], gstinBreakdown: {}, gridMonths: generateGrid(10, 2024, 24) },
+            { id: 5, name: 'Bank statements (Last 12 months)', status: 'PENDING', remarks: 'Missing: Nov 2025 to Oct 2026', months: [], uploadedFiles: [], gridMonths: generateGrid(10, 2025, 12) }
         ];
 
-        // Numeric MMYYYY match (e.g. 112025 -> Nov 2025)
-        const numMatch = fileName.match(/(?:_|\b)(0[1-9]|1[0-2])(202[4-6]|24|25|26)\b/);
-        if (numMatch) {
-          const mIdx = parseInt(numMatch[1], 10) - 1;
-          let yr = numMatch[2];
-          if (yr === '24') yr = '2024';
-          if (yr === '25') yr = '2025';
-          if (yr === '26') yr = '2026';
-          const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-          foundMonths.push(`${monthNames[mIdx]} ${yr}`);
-        }
+        let expandedDocId = null;
+        let activeProfile = 'New Client Analysis';
 
-        // Expanded short & long month name checks
-        const shortMonths = {
-          'jan': 'Jan', 'feb': 'Feb', 'mar': 'Mar', 'apr': 'Apr', 'may': 'May', 'jun': 'Jun',
-          'jul': 'Jul', 'aug': 'Aug', 'sep': 'Sep', 'sept': 'Sep', 'oct': 'Oct', 'nov': 'Nov', 'dec': 'Dec'
-        };
-
-        Object.keys(shortMonths).forEach(mKey => {
-          if (fileName.includes(mKey)) {
-            // Try to find accompanying year 2024, 2025, 2026 or 24, 25, 26
-            let yearMatch = fileName.match(/202[4-6]/);
-            let yr = yearMatch ? yearMatch[0] : '2026'; // Default to 2026 if year is abbreviated
-            if (fileName.includes('25') && !fileName.includes('2025')) yr = '2025';
-            if (fileName.includes('24') && !fileName.includes('2024')) yr = '2024';
-            foundMonths.push(`${shortMonths[mKey]} ${yr}`);
-          }
-        });
-
-        allMonths.forEach(m => {
-          if (fileName.includes(m.key) || fileName.includes(m.key.replace(' ', ''))) {
-            foundMonths.push(m.label);
-          }
-        });
-
-        if (fileName.includes('2024-25') || fileName.includes('24-25')) foundMonths.push('FY 2024-25');
-        if (fileName.includes('2025-26') || fileName.includes('25-26')) foundMonths.push('FY 2025-26');
-
-        let targetDocId = 5; 
-        if (selectedUploadType !== 'auto') {
-          targetDocId = parseInt(selectedUploadType);
-        } else {
-          if (fileName.includes('gst') && !fileName.includes('3b')) {
-            targetDocId = 1;
-          } else if (fileName.includes('fin') || fileName.includes('balance') || fileName.includes('ca') || fileName.includes('audit')) {
-            targetDocId = 2;
-          } else if (fileName.includes('prov') || fileName.includes('provisional')) {
-            targetDocId = 3;
-          } else if (fileName.includes('3b') || fileName.includes('gstr')) {
-            targetDocId = 4;
-          } else if (fileName.includes('bank') || fileName.includes('statement') || fileName.includes('account') || fileName.match(/(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)/i)) {
-            targetDocId = 5;
-          } else {
-            targetDocId = 5;
-          }
-        }
-
-        if (foundMonths.length === 0) {
-          foundMonths.push('Nov 2025');
-        }
-
-        updateFileState(fileId, { status: 'verified', progress: 100 });
-        resolve({ targetDocId, foundMonths: Array.from(new Set(foundMonths)), extractedGstin });
-      }, 800);
-    });
-  };
-
-  const handleFileUpload = async (e) => {
-    const files = Array.from(e.target.files || []);
-    if (files.length === 0) return;
-
-    for (const rawFile of files) {
-      const newFileObj = {
-        id: Date.now() + Math.random(),
-        name: rawFile.name,
-        status: 'pending',
-        progress: 0,
-        rawFile
-      };
-
-      addLog(`Ingesting document: ${rawFile.name}`, 'PROCESSING');
-
-      // Correctly prioritize explicit dropdown selection if the user changed it from 'auto', otherwise auto-detect based on file name/content
-      let initialTargetId = 5;
-      const fn = rawFile.name.toLowerCase();
-      
-      if (selectedUploadType !== 'auto') {
-        initialTargetId = parseInt(selectedUploadType);
-      } else {
-        if (fn.includes('gst') && !fn.includes('3b')) initialTargetId = 1;
-        else if (fn.includes('fin') || fn.includes('balance') || fn.includes('ca') || fn.includes('audit')) initialTargetId = 2;
-        else if (fn.includes('prov') || fn.includes('provisional')) initialTargetId = 3;
-        else if (fn.includes('3b') || fn.includes('gstr')) initialTargetId = 4;
-        else if (fn.includes('bank') || fn.includes('statement') || fn.includes('account') || (fn.match(/(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\s*20?2[4-6]/i) && !fn.includes('3b'))) initialTargetId = 5;
-        else initialTargetId = 5;
-      }
-
-      setDocuments(prev => prev.map(d => d.id === initialTargetId ? { ...d, uploadedFiles: [...d.uploadedFiles, newFileObj] } : d));
-
-      const result = await simulateFileAnalysis(newFileObj);
-      // Override simulated target with our robust initialTargetId if auto was used or dropdown was specified
-      const finalTargetId = selectedUploadType !== 'auto' ? parseInt(selectedUploadType) : (result.targetDocId || initialTargetId);
-      
-      setDocuments(prev => prev.map(doc => {
-        if (doc.id === finalTargetId) {
-          if (doc.id === 4) {
-            // Separate by detected GSTIN for GSTR 3B
-            const existingGstins = doc.gstinBreakdown || {};
-            const currentGstinMonths = existingGstins[result.extractedGstin] || [];
-            const updatedGstinMonths = Array.from(new Set([...currentGstinMonths, ...result.foundMonths]));
+        function addLog(text, status = 'INFO') {
+            const logsContainer = document.getElementById('logsContainer');
+            const logId = Math.random();
+            const badgeColor = status === 'VERIFIED' ? 'bg-emerald-500/25 text-emerald-400' : status === 'PROCESSING' ? 'bg-amber-500/25 text-amber-400' : 'bg-blue-500/25 text-blue-400';
             
-            const newGstinBreakdown = {
-              ...existingGstins,
-              [result.extractedGstin]: updatedGstinMonths
-            };
-
-            const allCollectedMonths = Array.from(new Set(Object.values(newGstinBreakdown).flat()));
-            const allGrid = doc.gridMonths || [];
-            const isComplete = allGrid.length > 0 && allGrid.every(m => allCollectedMonths.includes(m));
-
-            return {
-              ...doc,
-              gstinBreakdown: newGstinBreakdown,
-              months: allCollectedMonths,
-              status: isComplete || allCollectedMonths.length > 0 ? 'VERIFIED' : 'PENDING',
-              remarks: `Verified across ${Object.keys(newGstinBreakdown).length} GSTIN(s)`
-            };
-          } else {
-            const updatedMonths = Array.from(new Set([...doc.months, ...result.foundMonths]));
-            const allGrid = doc.gridMonths || [];
-            const isComplete = allGrid.length > 0 && allGrid.every(m => updatedMonths.includes(m));
-            
-            return {
-              ...doc,
-              months: updatedMonths,
-              status: isComplete || updatedMonths.length > 0 ? 'VERIFIED' : 'PENDING',
-              remarks: updatedMonths.length > 0 ? `Verified: ${updatedMonths.join(', ')}` : doc.remarks
-            };
-          }
+            const item = document.createElement('div');
+            item.className = 'p-2.5 bg-slate-950/80 rounded-xl border border-slate-800/60 flex items-center justify-between';
+            item.innerHTML = `<span class="text-slate-300 truncate pr-2">${text}</span><span class="text-[10px] font-bold px-2 py-0.5 rounded ${badgeColor}">${status}</span>`;
+            logsContainer.prepend(item);
         }
-        return doc;
-      }));
 
-      addLog(`Successfully analyzed ${rawFile.name} -> Routed to Document #${finalTargetId} [Periods: ${result.foundMonths.join(', ')}]`, 'VERIFIED');
-    }
-  };
+        function changeProfile(val) {
+            activeProfile = val;
+            document.getElementById('activeProfileLabel').innerText = val;
+            renderDocuments();
+        }
 
-  const toggleMonthForGstin = (docId, gstin, monthLabel) => {
-    setDocuments(prev => prev.map(doc => {
-      if (doc.id === docId && doc.gstinBreakdown) {
-        const gstinMonths = doc.gstinBreakdown[gstin] || [];
-        const exists = gstinMonths.includes(monthLabel);
-        const updatedGstinMonths = exists ? gstinMonths.filter(m => m !== monthLabel) : [...gstinMonths, monthLabel];
-        
-        const newBreakdown = {
-          ...doc.gstinBreakdown,
-          [gstin]: updatedGstinMonths
-        };
+        function toggleExpand(id) {
+            expandedDocId = expandedDocId === id ? null : id;
+            renderDocuments();
+        }
 
-        const allCollectedMonths = Array.from(new Set(Object.values(newBreakdown).flat()));
+        function markAll(id) {
+            documents = documents.map(d => {
+                if (d.id === id && d.gridMonths) {
+                    if (d.id === 4) {
+                        let breakdown = { '29AITPG6097N2Z4': [...d.gridMonths] };
+                        return { ...d, gstinBreakdown: breakdown, months: [...d.gridMonths], status: 'VERIFIED', remarks: 'All periods verified' };
+                    } else {
+                        return { ...d, months: [...d.gridMonths], status: 'VERIFIED', remarks: 'All periods verified' };
+                    }
+                }
+                return d;
+            });
+            renderDocuments();
+        }
 
-        return {
-          ...doc,
-          gstinBreakdown: newBreakdown,
-          months: allCollectedMonths,
-          status: allCollectedMonths.length > 0 ? 'VERIFIED' : 'PENDING',
-          remarks: `Verified across ${Object.keys(newBreakdown).length} GSTIN(s)`
-        };
-      }
-      return doc;
-    }));
-  };
+        function toggleMonthDirect(docId, month) {
+            documents = documents.map(doc => {
+                if (doc.id === docId) {
+                    let exists = doc.months.includes(month);
+                    let newMonths = exists ? doc.months.filter(m => m !== month) : [...doc.months, month];
+                    return { ...doc, months: newMonths, status: newMonths.length > 0 ? 'VERIFIED' : 'PENDING', remarks: newMonths.length > 0 ? `Verified: ${newMonths.length} periods` : 'Missing' };
+                }
+                return doc;
+            });
+            renderDocuments();
+        }
 
-  const toggleMonth = (docId, monthLabel) => {
-    setDocuments(prev => prev.map(doc => {
-      if (doc.id === docId) {
-        const exists = doc.months.includes(monthLabel);
-        const newMonths = exists ? doc.months.filter(m => m !== monthLabel) : [...doc.months, monthLabel];
-        const allGrid = doc.gridMonths || [];
-        const isComplete = allGrid.length > 0 && allGrid.every(m => newMonths.includes(m));
+        function toggleGstinMonth(docId, gstin, month) {
+            documents = documents.map(doc => {
+                if (doc.id === docId && doc.gstinBreakdown) {
+                    let gList = doc.gstinBreakdown[gstin] || [];
+                    let exists = gList.includes(month);
+                    let updated = exists ? gList.filter(m => m !== month) : [...gList, month];
+                    let newBreakdown = { ...doc.gstinBreakdown, [gstin]: updated };
+                    let allCollected = Array.from(new Set(Object.values(newBreakdown).flat()));
+                    return { ...doc, gstinBreakdown: newBreakdown, months: allCollected, status: allCollected.length > 0 ? 'VERIFIED' : 'PENDING', remarks: `Verified across ${Object.keys(newBreakdown).length} GSTIN(s)` };
+                }
+                return doc;
+            });
+            renderDocuments();
+        }
 
-        return {
-          ...doc,
-          months: newMonths,
-          status: newMonths.length > 0 ? 'VERIFIED' : 'PENDING',
-          remarks: newMonths.length > 0 ? `Verified: ${newMonths.length} periods` : 'Missing'
-        };
-      }
-      return doc;
-    }));
-  };
+        async function handleFileUpload(e) {
+            const files = Array.from(e.target.files);
+            if (!files.length) return;
 
-  const markAllCollected = (docId) => {
-    setDocuments(prev => prev.map(doc => {
-      if (doc.id === docId && doc.gridMonths) {
-        return {
-          ...doc,
-          months: [...doc.gridMonths],
-          status: 'VERIFIED',
-          remarks: 'All periods verified'
-        };
-      }
-      return doc;
-    }));
-  };
+            const forceType = document.getElementById('forceAssignment').value;
 
-  const verifiedCount = documents.filter(d => d.status === 'VERIFIED').length;
-  const pendingCount = documents.length - verifiedCount;
+            for (let rawFile of files) {
+                addLog(`Ingesting document: ${rawFile.name}`, 'PROCESSING');
+                
+                let targetId = 5;
+                let fn = rawFile.name.toLowerCase();
 
-  return (
-    <div className="min-h-screen bg-slate-100 flex flex-col font-sans text-slate-800">
-      {/* Top Header */}
-      <header className="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between shadow-sm">
-        <div className="flex items-center space-x-3">
-          <div className="bg-blue-600 text-white p-2 rounded-xl shadow-md">
-            <ShieldCheck className="w-6 h-6" />
-          </div>
-          <div>
-            <h1 className="text-xl font-bold text-slate-900 tracking-tight">Credit Assessment</h1>
-            <p className="text-xs text-slate-500">Document Pendency Engine & Multi-GSTIN Separation</p>
-          </div>
-        </div>
-        <div className="flex items-center space-x-4">
-          <div className="text-xs font-semibold bg-slate-100 border border-slate-200 px-3 py-1.5 rounded-lg text-slate-700">
-            Active Profile: <span className="text-blue-600 font-bold">{activeProfile}</span>
-          </div>
-          <select 
-            value={activeProfile} 
-            onChange={(e) => setActiveProfile(e.target.value)}
-            className="text-xs bg-slate-900 text-white font-medium px-3 py-2 rounded-lg shadow-sm focus:outline-none"
-          >
-            <option>New Client Analysis</option>
-            <option>Existing Corporate Review</option>
-          </select>
-        </div>
-      </header>
+                if (forceType !== 'auto') {
+                    targetId = parseInt(forceType);
+                } else {
+                    if (fn.includes('gst') && !fn.includes('3b')) targetId = 1;
+                    else if (fn.includes('fin') || fn.includes('balance') || fn.includes('ca')) targetId = 2;
+                    else if (fn.includes('prov')) targetId = 3;
+                    else if (fn.includes('3b') || fn.includes('gstr')) targetId = 4;
+                    else if (fn.includes('bank') || fn.includes('statement') || fn.match(/(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)/i)) targetId = 5;
+                }
 
-      {/* Main Layout */}
-      <main className="flex-1 p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 max-w-[1600px] mx-auto w-full">
-        
-        {/* Left Column: AI Ingestion & Logs */}
-        <div className="lg:col-span-5 flex flex-col space-y-6">
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex flex-col">
-            <div className="flex items-center space-x-2 mb-4">
-              <Sparkles className="w-5 h-5 text-blue-600" />
-              <h2 className="text-base font-bold text-slate-900">AI Document Engine</h2>
-            </div>
+                // Simulate AI Extraction
+                await new Promise(r => setTimeout(r, 600));
 
-            <label className="border-2 border-dashed border-slate-300 hover:border-blue-500 rounded-2xl p-8 flex flex-col items-center justify-center cursor-pointer bg-slate-50/50 transition-all group">
-              <div className="bg-blue-50 group-hover:bg-blue-100 text-blue-600 p-4 rounded-full mb-3 transition-colors">
-                <Upload className="w-8 h-8" />
-              </div>
-              <span className="text-sm font-bold text-slate-700 mb-1">Upload Multi-GSTIN GSTR-3B Files</span>
-              <span className="text-xs text-slate-400 text-center">Engine automatically reads GSTINs and separates results per GST number</span>
-              <input type="file" multiple onChange={handleFileUpload} className="hidden" />
-            </label>
+                let extractedGstin = '29AITPG6097N2Z4';
+                if (fn.includes('29bjmpg')) extractedGstin = '29BJMPG7066C1Z1';
+                let gstinMatch = fn.match(/([0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1})/i);
+                if (gstinMatch) extractedGstin = gstinMatch[1].toUpperCase();
 
-            <div className="mt-4 pt-4 border-t border-slate-100">
-              <label className="text-xs font-semibold text-slate-600 block mb-1.5">FORCE DOCUMENT ASSIGNMENT</label>
-              <select
-                value={selectedUploadType}
-                onChange={(e) => setSelectedUploadType(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 text-slate-700 text-xs rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="auto">Auto-Detect via AI Engine (Recommended)</option>
-                {documents.map(doc => (
-                  <option key={`assign-opt-${doc.id}`} value={doc.id}>{doc.name}</option>
-                ))}
-              </select>
-            </div>
-          </div>
+                let foundMonths = [];
+                // Detect months in filename
+                const monthCodes = { 'jan':'Jan', 'feb':'Feb', 'mar':'Mar', 'apr':'Apr', 'may':'May', 'jun':'Jun', 'jul':'Jul', 'aug':'Aug', 'sep':'Sep', 'oct':'Oct', 'nov':'Nov', 'dec':'Dec' };
+                Object.keys(monthCodes).forEach(k => {
+                    if (fn.includes(k)) {
+                        let yr = fn.includes('2025') ? '2025' : fn.includes('2024') ? '2024' : '2026';
+                        foundMonths.push(`${monthCodes[k]} ${yr}`);
+                    }
+                });
 
-          {/* Verification Logs Console */}
-          <div className="bg-slate-900 rounded-2xl shadow-sm border border-slate-800 p-4 flex flex-col flex-1 min-h-[240px]">
-            <div className="flex items-center justify-between mb-3 border-b border-slate-800 pb-2">
-              <div className="flex items-center space-x-2 text-xs font-mono text-slate-400">
-                <Database className="w-4 h-4 text-emerald-400" />
-                <span>verification_logs.exe</span>
-              </div>
-              <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-emerald-500/15 text-emerald-400">
-                ACTIVE
-              </span>
-            </div>
-            <div className="flex-1 overflow-y-auto space-y-2 font-mono text-xs">
-              {logs.map(log => (
-                <div key={`log-item-${log.id}`} className="p-2.5 bg-slate-950/80 rounded-xl border border-slate-800/60 flex items-center justify-between">
-                  <span className="text-slate-300 truncate pr-2">{log.text}</span>
-                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
-                    log.status === 'VERIFIED' ? 'bg-emerald-500/20 text-emerald-400' :
-                    log.status === 'PROCESSING' ? 'bg-amber-500/20 text-amber-400' : 'bg-blue-500/20 text-blue-400'
-                  }`}>
-                    {log.status}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
+                if (foundMonths.length === 0) {
+                    foundMonths.push('Nov 2025', 'Dec 2025');
+                }
 
-        {/* Right Column: Verified Document Checklist & Tables */}
-        <div className="lg:col-span-7 flex flex-col space-y-6">
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex flex-col">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h2 className="text-lg font-bold text-slate-900">Verified Document Checklist</h2>
-                <p className="text-xs text-slate-500">Active Profile: {activeProfile} — {verifiedCount} Verified, {pendingCount} Pending</p>
-              </div>
-              <button className="flex items-center space-x-1.5 text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-2 rounded-xl transition-colors">
-                <FileText className="w-3.5 h-3.5" />
-                <span>Copy List</span>
-              </button>
-            </div>
+                documents = documents.map(doc => {
+                    if (doc.id === targetId) {
+                        if (doc.id === 4) {
+                            let breakdown = doc.gstinBreakdown || {};
+                            let curr = breakdown[extractedGstin] || [];
+                            let combined = Array.from(new Set([...curr, ...foundMonths]));
+                            breakdown[extractedGstin] = combined;
+                            let allCol = Array.from(new Set(Object.values(breakdown).flat()));
+                            return { ...doc, gstinBreakdown: breakdown, months: allCol, status: 'VERIFIED', remarks: `Verified across ${Object.keys(breakdown).length} GSTIN(s)` };
+                        } else {
+                            let combined = Array.from(new Set([...doc.months, ...foundMonths]));
+                            return { ...doc, months: combined, status: 'VERIFIED', remarks: `Verified: ${combined.join(', ')}` };
+                        }
+                    }
+                    return doc;
+                });
 
-            <div className="space-y-3">
-              {documents.map(doc => {
-                const isExpanded = expandedDocId === doc.id;
-                const isVerified = doc.status === 'VERIFIED';
+                addLog(`Successfully analyzed ${rawFile.name} -> Routed to Document #${targetId} [Periods: ${foundMonths.join(', ')}]`, 'VERIFIED');
+                renderDocuments();
+            }
+        }
 
-                return (
-                  <div key={`doc-row-${doc.id}`} className="border border-slate-200 rounded-xl overflow-hidden transition-all bg-white">
-                    <div className="p-4 flex items-center justify-between hover:bg-slate-50/80">
-                      <div className="flex items-center space-x-3">
-                        <span className="text-sm font-bold text-slate-400 w-5">{doc.id}</span>
-                        <div>
-                          <h3 className="text-sm font-semibold text-slate-800">{doc.name}</h3>
-                          <p className="text-xs text-slate-500 mt-0.5">{doc.remarks}</p>
+        function copyChecklist() {
+            alert('Checklist summary copied to clipboard!');
+        }
+
+        function renderDocuments() {
+            const container = document.getElementById('documentsContainer');
+            container.innerHTML = '';
+
+            let verified = documents.filter(d => d.status === 'VERIFIED').length;
+            document.getElementById('checklistSummary').innerText = `Active Profile: ${activeProfile} — ${verified} Verified, ${documents.length - verified} Pending`;
+
+            documents.forEach(doc => {
+                let isExpanded = expandedDocId === doc.id;
+                let isVerified = doc.status === 'VERIFIED';
+
+                let card = document.createElement('div');
+                card.className = 'border border-slate-200 rounded-xl overflow-hidden transition-all bg-white';
+                
+                let header = `
+                    <div class="p-4 flex items-center justify-between hover:bg-slate-50/80">
+                        <div class="flex items-center space-x-3">
+                            <span class="text-sm font-bold text-slate-400 w-5">${doc.id}</span>
+                            <div>
+                                <h3 class="text-sm font-semibold text-slate-800">${doc.name}</h3>
+                                <p class="text-xs text-slate-500 mt-0.5">${doc.remarks}</p>
+                            </div>
                         </div>
-                      </div>
-
-                      <div className="flex items-center space-x-3">
-                        <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${
-                          isVerified ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
-                        }`}>
-                          {doc.status}
-                        </span>
-
-                        {doc.gridMonths && (
-                          <button 
-                            onClick={() => setExpandedDocId(isExpanded ? null : doc.id)}
-                            className="p-1.5 hover:bg-slate-200 rounded-lg text-slate-500 transition-colors"
-                          >
-                            {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-                          </button>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Month-wise Verification Table Drawer with Multi-GSTIN Separation */}
-                    {isExpanded && doc.gridMonths && (
-                      <div className="bg-slate-50 border-t border-slate-200 p-5 space-y-5">
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs font-bold uppercase tracking-wider text-slate-600 flex items-center space-x-1.5">
-                            <Layers className="w-4 h-4 text-blue-600" />
-                            <span>Month-Wise Verification Table ({doc.gridMonths.length} Periods)</span>
-                          </span>
-                          <button
-                            onClick={() => markAllCollected(doc.id)}
-                            className="text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg shadow-sm transition-colors"
-                          >
-                            Mark All Collected
-                          </button>
-                        </div>
-
-                        {/* Separate GSTIN Breakdown for GSTR 3B */}
-                        {doc.id === 4 ? (
-                          <div className="space-y-4">
-                            {/* If no GSTIN uploaded yet, show default template card */}
-                            {(!doc.gstinBreakdown || Object.keys(doc.gstinBreakdown).length === 0) && (
-                              <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-                                <div className="flex items-center justify-between mb-3 border-b border-slate-100 pb-2">
-                                  <span className="bg-blue-100 text-blue-700 font-mono font-bold text-xs px-2.5 py-1 rounded-md">
-                                    GSTIN #1: 29AITPG6097N2Z4 (Default)
-                                  </span>
-                                  <span className="text-xs text-slate-500 font-medium">Upload GSTR-3B files to auto-populate</span>
-                                </div>
-                                <div className="grid grid-cols-4 sm:grid-cols-6 gap-2.5">
-                                  {doc.gridMonths.map((month, mIdx) => {
-                                    const collected = doc.months.includes(month);
-                                    return (
-                                      <button
-                                        key={`default-grid-${doc.id}-${mIdx}-${month}`}
-                                        onClick={() => toggleMonth(doc.id, month)}
-                                        className={`p-2.5 rounded-xl border text-center transition-all flex flex-col items-center justify-center ${
-                                          collected 
-                                            ? 'bg-emerald-50 border-emerald-300 text-emerald-800 shadow-sm' 
-                                            : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
-                                        }`}
-                                      >
-                                        <span className="text-xs font-bold">{month}</span>
-                                        <span className={`text-[10px] mt-1 font-semibold px-1.5 py-0.5 rounded ${
-                                          collected ? 'bg-emerald-200/60 text-emerald-800' : 'bg-rose-100 text-rose-700'
-                                        }`}>
-                                          {collected ? 'COLLECTED' : 'MISSING'}
-                                        </span>
-                                      </button>
-                                    );
-                                  })}
-                                </div>
-                              </div>
-                            )}
-
-                            {/* Render each detected GSTIN separately */}
-                            {doc.gstinBreakdown && Object.entries(doc.gstinBreakdown).map(([gstin, collectedMonths], gIdx) => (
-                              <div key={`gstin-card-${gstin}-${gIdx}`} className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-                                <div className="flex items-center justify-between mb-3 border-b border-slate-100 pb-2">
-                                  <div className="flex items-center space-x-2">
-                                    <span className="bg-blue-100 text-blue-700 font-mono font-bold text-xs px-2.5 py-1 rounded-md">
-                                      GSTIN #{gIdx + 1}: {gstin}
-                                    </span>
-                                    <span className="text-xs text-slate-500 font-medium">({collectedMonths.length} months verified)</span>
-                                  </div>
-                                </div>
-                                <div className="grid grid-cols-4 sm:grid-cols-6 gap-2.5">
-                                  {doc.gridMonths.map((month, mIdx) => {
-                                    const collected = collectedMonths.includes(month);
-                                    return (
-                                      <button
-                                        key={`grid-gstin-${doc.id}-${gstin}-${mIdx}-${month}`}
-                                        onClick={() => toggleMonthForGstin(doc.id, gstin, month)}
-                                        className={`p-2.5 rounded-xl border text-center transition-all flex flex-col items-center justify-center ${
-                                          collected 
-                                            ? 'bg-emerald-50 border-emerald-300 text-emerald-800 shadow-sm' 
-                                            : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
-                                        }`}
-                                      >
-                                        <span className="text-xs font-bold">{month}</span>
-                                        <span className={`text-[10px] mt-1 font-semibold px-1.5 py-0.5 rounded ${
-                                          collected ? 'bg-emerald-200/60 text-emerald-800' : 'bg-rose-100 text-rose-700'
-                                        }`}>
-                                          {collected ? 'COLLECTED' : 'MISSING'}
-                                        </span>
-                                      </button>
-                                    );
-                                  })}
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        ) : (
-                          <div className="grid grid-cols-4 sm:grid-cols-6 gap-2.5">
-                            {doc.gridMonths.map((month, mIdx) => {
-                              const collected = doc.months.includes(month);
-                              return (
-                                <button
-                                  key={`grid-item-${doc.id}-${mIdx}-${month}`}
-                                  onClick={() => toggleMonth(doc.id, month)}
-                                  className={`p-2.5 rounded-xl border text-center transition-all flex flex-col items-center justify-center ${
-                                    collected 
-                                      ? 'bg-emerald-50 border-emerald-300 text-emerald-800 shadow-sm' 
-                                      : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
-                                  }`}
-                                >
-                                  <span className="text-xs font-bold">{month}</span>
-                                  <span className={`text-[10px] mt-1 font-semibold px-1.5 py-0.5 rounded ${
-                                    collected ? 'bg-emerald-200/60 text-emerald-800' : 'bg-rose-100 text-rose-700'
-                                  }`}>
-                                    {collected ? 'COLLECTED' : 'MISSING'}
-                                  </span>
+                        <div class="flex items-center space-x-3">
+                            <span class="text-xs font-bold px-2.5 py-1 rounded-full ${isVerified ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}">
+                                ${doc.status}
+                            </span>
+                            ${doc.gridMonths ? `
+                                <button onclick="toggleExpand(${doc.id})" class="p-1.5 hover:bg-slate-200 rounded-lg text-slate-500 transition-colors">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="${isExpanded ? 'M5 15l7-7 7 7' : 'M19 9l-7 7-7-7'}"></path></svg>
                                 </button>
-                              );
-                            })}
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                `;
 
-      </main>
-    </div>
-  );
-}
+                let drawer = '';
+                if (isExpanded && doc.gridMonths) {
+                    let gridContent = '';
+                    if (doc.id === 4) {
+                        let bKeys = Object.keys(doc.gstinBreakdown || {});
+                        if (bKeys.length === 0) {
+                            // Default preview card
+                            gridContent += `
+                                <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm mb-3">
+                                    <div class="flex items-center justify-between mb-3 border-b border-slate-100 pb-2">
+                                        <span class="bg-blue-100 text-blue-700 font-mono font-bold text-xs px-2.5 py-1 rounded-md">GSTIN #1: 29AITPG6097N2Z4 (Default)</span>
+                                    </div>
+                                    <div class="grid grid-cols-4 sm:grid-cols-6 gap-2.5">
+                                        ${doc.gridMonths.map(m => {
+                                            let collected = doc.months.includes(m);
+                                            return `
+                                                <button onclick="toggleMonthDirect(${doc.id}, '${m}')" class="p-2.5 rounded-xl border text-center transition-all flex flex-col items-center justify-center ${collected ? 'bg-emerald-50 border-emerald-300 text-emerald-800' : 'bg-white border-slate-200 text-slate-600'}">
+                                                    <span class="text-xs font-bold">${m}</span>
+                                                    <span class="text-[10px] mt-1 font-semibold px-1.5 py-0.5 rounded ${collected ? 'bg-emerald-200 text-emerald-800' : 'bg-rose-100 text-rose-700'}">${collected ? 'COLLECTED' : 'MISSING'}</span>
+                                                </button>
+                                            `;
+                                        }).join('')}
+                                    </div>
+                                </div>
+                            `;
+                        } else {
+                            bKeys.forEach((gstin, gIdx) => {
+                                let collectedList = doc.gstinBreakdown[gstin] || [];
+                                gridContent += `
+                                    <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm mb-3">
+                                        <div class="flex items-center justify-between mb-3 border-b border-slate-100 pb-2">
+                                            <span class="bg-blue-100 text-blue-700 font-mono font-bold text-xs px-2.5 py-1 rounded-md">GSTIN #${gIdx+1}: ${gstin}</span>
+                                            <span class="text-xs text-slate-500 font-medium">(${collectedList.length} months verified)</span>
+                                        </div>
+                                        <div class="grid grid-cols-4 sm:grid-cols-6 gap-2.5">
+                                            ${doc.gridMonths.map(m => {
+                                                let collected = collectedList.includes(m);
+                                                return `
+                                                    <button onclick="toggleGstinMonth(${doc.id}, '${gstin}', '${m}')" class="p-2.5 rounded-xl border text-center transition-all flex flex-col items-center justify-center ${collected ? 'bg-emerald-50 border-emerald-300 text-emerald-800' : 'bg-white border-slate-200 text-slate-600'}">
+                                                        <span class="text-xs font-bold">${m}</span>
+                                                        <span class="text-[10px] mt-1 font-semibold px-1.5 py-0.5 rounded ${collected ? 'bg-emerald-200 text-emerald-800' : 'bg-rose-100 text-rose-700'}">${collected ? 'COLLECTED' : 'MISSING'}</span>
+                                                    </button>
+                                                `;
+                                            }).join('')}
+                                        </div>
+                                    </div>
+                                `;
+                            });
+                        }
+                    } else {
+                        gridContent = `
+                            <div class="grid grid-cols-4 sm:grid-cols-6 gap-2.5">
+                                ${doc.gridMonths.map(m => {
+                                    let collected = doc.months.includes(m);
+                                    return `
+                                        <button onclick="toggleMonthDirect(${doc.id}, '${m}')" class="p-2.5 rounded-xl border text-center transition-all flex flex-col items-center justify-center ${collected ? 'bg-emerald-50 border-emerald-300 text-emerald-800' : 'bg-white border-slate-200 text-slate-600'}">
+                                            <span class="text-xs font-bold">${m}</span>
+                                            <span class="text-[10px] mt-1 font-semibold px-1.5 py-0.5 rounded ${collected ? 'bg-emerald-200 text-emerald-800' : 'bg-rose-100 text-rose-700'}">${collected ? 'COLLECTED' : 'MISSING'}</span>
+                                        </button>
+                                    `;
+                                }).join('')}
+                            </div>
+                        `;
+                    }
+
+                    drawer = `
+                        <div class="bg-slate-50 border-t border-slate-200 p-5 space-y-4">
+                            <div class="flex items-center justify-between">
+                                <span class="text-xs font-bold uppercase tracking-wider text-slate-600">Month-Wise Verification Table (${doc.gridMonths.length} Periods)</span>
+                                <button onclick="markAll(${doc.id})" class="text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg transition-colors">Mark All Collected</button>
+                            </div>
+                            ${gridContent}
+                        </div>
+                    `;
+                }
+
+                card.innerHTML = header + drawer;
+                container.appendChild(card);
+            });
+        }
+
+        window.onload = renderDocuments;
+    </script>
+</body>
+</html>
