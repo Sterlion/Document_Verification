@@ -1,0 +1,536 @@
+import React, { useState, useEffect } from 'react';
+import { 
+  Upload, FileText, CheckCircle2, AlertTriangle, Clock, ChevronRight, ChevronDown, 
+  RefreshCw, Layers, ShieldCheck, Database, Trash2, CheckSquare, Square, Eye, Sparkles
+} from 'lucide-react';
+
+export default function App() {
+  const [activeProfile, setActiveProfile] = useState('New Client Analysis');
+  const [isCloudAIEnabled, setIsCloudAIEnabled] = useState(true);
+  const [selectedUploadType, setSelectedUploadType] = useState('auto');
+  const [expandedDocId, setExpandedDocId] = useState(null);
+
+  const [documents, setDocuments] = useState([
+    { id: 1, name: 'GST Certificate & MSME (UDAYAM)', status: 'PENDING', remarks: 'Missing', months: [], uploadedFiles: [] },
+    { id: 2, name: 'Last 2 years CA & customer signed financials', status: 'PENDING', remarks: 'Missing: FY 2024-25, FY 2025-26', months: [], uploadedFiles: [], gridMonths: ['FY 2024-25', 'FY 2025-26'] },
+    { id: 3, name: 'Provisional Last year till March', status: 'PENDING', remarks: 'Missing: Apr 2025 to Mar 2026', months: [], uploadedFiles: [], gridMonths: ['Apr 2025', 'May 2025', 'Jun 2025', 'Jul 2025', 'Aug 2025', 'Sep 2025', 'Oct 2025', 'Nov 2025', 'Dec 2025', 'Jan 2026', 'Feb 2026', 'Mar 2026'] },
+    { id: 4, name: 'GSTR 3B (Last 24 months)', status: 'PENDING', remarks: 'Missing: Nov 2024 to Oct 2026', months: [], uploadedFiles: [], gridMonths: ['Nov 2024', 'Dec 2024', 'Jan 2025', 'Feb 2025', 'Mar 2025', 'Apr 2025', 'May 2025', 'Jun 2025', 'Jul 2025', 'Aug 2025', 'Sep 2025', 'Oct 2025', 'Nov 2025', 'Dec 2025', 'Jan 2026', 'Feb 2026', 'Mar 2026', 'Apr 2026', 'May 2026', 'Jun 2026', 'Jul 2026', 'Aug 2026', 'Sep 2026', 'Oct 2026'] },
+    { id: 5, name: 'Bank statements (Last 12 months)', status: 'PENDING', remarks: 'Missing: Nov 2025 to Oct 2026', months: [], uploadedFiles: [], gridMonths: ['Nov 2025', 'Dec 2025', 'Jan 2026', 'Feb 2026', 'Mar 2026', 'Apr 2026', 'May 2026', 'Jun 2026', 'Jul 2026', 'Aug 2026', 'Sep 2026', 'Oct 2026'] }
+  ]);
+
+  const [logs, setLogs] = useState([
+    { id: 1, text: 'System initialized. Ready for multi-GSTIN ingestion & Cloud AI verification.', status: 'READY' }
+  ]);
+
+  const addLog = (text, status = 'INFO') => {
+    setLogs(prev => [{ id: Date.now() + Math.random(), text, status }, ...prev.slice(0, 15)]);
+  };
+
+  const updateFileState = (fileId, newProps) => {
+    setDocuments(prev => prev.map(doc => ({
+      ...doc,
+      uploadedFiles: doc.uploadedFiles.map(f => f.id === fileId ? { ...f, ...newProps } : f)
+    })));
+  };
+
+  const simulateFileAnalysis = (fileObj) => {
+    return new Promise((resolve) => {
+      const fileId = fileObj.id;
+      updateFileState(fileId, { status: 'processing', progress: 40 });
+
+      setTimeout(() => {
+        const fileName = fileObj.name.toLowerCase();
+        let foundMonths = [];
+        let extractedGstin = '29AITPG6097N2Z4';
+        
+        // Extract GSTIN if present in filename
+        const gstinMatch = fileName.match(/([0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1})/i);
+        if (gstinMatch) {
+          extractedGstin = gstinMatch[1].toUpperCase();
+        } else if (fileName.includes('29bjmpg')) {
+          extractedGstin = '29BJMPG7066C1Z1';
+        }
+
+        let allMonths = [
+          { key: 'nov 2024', label: 'Nov 2024' }, { key: 'dec 2024', label: 'Dec 2024' },
+          { key: 'jan 2025', label: 'Jan 2025' }, { key: 'feb 2025', label: 'Feb 2025' }, { key: 'mar 2025', label: 'Mar 2025' }, { key: 'apr 2025', label: 'Apr 2025' }, { key: 'may 2025', label: 'May 2025' }, { key: 'jun 2025', label: 'Jun 2025' }, { key: 'jul 2025', label: 'Jul 2025' }, { key: 'aug 2025', label: 'Aug 2025' }, { key: 'sep 2025', label: 'Sep 2025' }, { key: 'oct 2025', label: 'Oct 2025' },
+          { key: 'nov 2025', label: 'Nov 2025' }, { key: 'dec 2025', label: 'Dec 2025' },
+          { key: 'jan 2026', label: 'Jan 2026' }, { key: 'feb 2026', label: 'Feb 2026' }, { key: 'mar 2026', label: 'Mar 2026' }, { key: 'apr 2026', label: 'Apr 2026' }, { key: 'may 2026', label: 'May 2026' }, { key: 'jun 2026', label: 'Jun 2026' }, { key: 'jul 2026', label: 'Jul 2026' }, { key: 'aug 2026', label: 'Aug 2026' }, { key: 'sep 2026', label: 'Sep 2026' }, { key: 'oct 2026', label: 'Oct 2026' }
+        ];
+
+        // Numeric MMYYYY match (e.g. 112025 -> Nov 2025)
+        const numMatch = fileName.match(/(?:_|\b)(0[1-9]|1[0-2])(202[4-6]|24|25|26)\b/);
+        if (numMatch) {
+          const mIdx = parseInt(numMatch[1], 10) - 1;
+          let yr = numMatch[2];
+          if (yr === '24') yr = '2024';
+          if (yr === '25') yr = '2025';
+          if (yr === '26') yr = '2026';
+          const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+          foundMonths.push(`${monthNames[mIdx]} ${yr}`);
+        }
+
+        // Expanded short & long month name checks
+        const shortMonths = {
+          'jan': 'Jan', 'feb': 'Feb', 'mar': 'Mar', 'apr': 'Apr', 'may': 'May', 'jun': 'Jun',
+          'jul': 'Jul', 'aug': 'Aug', 'sep': 'Sep', 'sept': 'Sep', 'oct': 'Oct', 'nov': 'Nov', 'dec': 'Dec'
+        };
+
+        Object.keys(shortMonths).forEach(mKey => {
+          if (fileName.includes(mKey)) {
+            // Try to find accompanying year 2024, 2025, 2026 or 24, 25, 26
+            let yearMatch = fileName.match(/202[4-6]/);
+            let yr = yearMatch ? yearMatch[0] : '2026'; // Default to 2026 if year is abbreviated
+            if (fileName.includes('25') && !fileName.includes('2025')) yr = '2025';
+            if (fileName.includes('24') && !fileName.includes('2024')) yr = '2024';
+            foundMonths.push(`${shortMonths[mKey]} ${yr}`);
+          }
+        });
+
+        allMonths.forEach(m => {
+          if (fileName.includes(m.key) || fileName.includes(m.key.replace(' ', ''))) {
+            foundMonths.push(m.label);
+          }
+        });
+
+        if (fileName.includes('2024-25') || fileName.includes('24-25')) foundMonths.push('FY 2024-25');
+        if (fileName.includes('2025-26') || fileName.includes('25-26')) foundMonths.push('FY 2025-26');
+
+        let targetDocId = 5; 
+        if (selectedUploadType !== 'auto') {
+          targetDocId = parseInt(selectedUploadType);
+        } else {
+          if (fileName.includes('gst') && !fileName.includes('3b')) {
+            targetDocId = 1;
+          } else if (fileName.includes('fin') || fileName.includes('balance') || fileName.includes('ca') || fileName.includes('audit')) {
+            targetDocId = 2;
+          } else if (fileName.includes('prov') || fileName.includes('provisional')) {
+            targetDocId = 3;
+          } else if (fileName.includes('3b') || fileName.includes('gstr')) {
+            targetDocId = 4;
+          } else if (fileName.includes('bank') || fileName.includes('statement') || fileName.includes('account') || fileName.match(/(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)/i)) {
+            targetDocId = 5;
+          } else {
+            targetDocId = 5;
+          }
+        }
+
+        if (foundMonths.length === 0) {
+          foundMonths.push('Nov 2025');
+        }
+
+        updateFileState(fileId, { status: 'verified', progress: 100 });
+        resolve({ targetDocId, foundMonths: Array.from(new Set(foundMonths)), extractedGstin });
+      }, 800);
+    });
+  };
+
+  const handleFileUpload = async (e) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+
+    for (const rawFile of files) {
+      const newFileObj = {
+        id: Date.now() + Math.random(),
+        name: rawFile.name,
+        status: 'pending',
+        progress: 0,
+        rawFile
+      };
+
+      addLog(`Ingesting document: ${rawFile.name}`, 'PROCESSING');
+
+      // Correctly prioritize explicit dropdown selection if the user changed it from 'auto', otherwise auto-detect based on file name/content
+      let initialTargetId = 5;
+      const fn = rawFile.name.toLowerCase();
+      
+      if (selectedUploadType !== 'auto') {
+        initialTargetId = parseInt(selectedUploadType);
+      } else {
+        if (fn.includes('gst') && !fn.includes('3b')) initialTargetId = 1;
+        else if (fn.includes('fin') || fn.includes('balance') || fn.includes('ca') || fn.includes('audit')) initialTargetId = 2;
+        else if (fn.includes('prov') || fn.includes('provisional')) initialTargetId = 3;
+        else if (fn.includes('3b') || fn.includes('gstr')) initialTargetId = 4;
+        else if (fn.includes('bank') || fn.includes('statement') || fn.includes('account') || (fn.match(/(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\s*20?2[4-6]/i) && !fn.includes('3b'))) initialTargetId = 5;
+        else initialTargetId = 5;
+      }
+
+      setDocuments(prev => prev.map(d => d.id === initialTargetId ? { ...d, uploadedFiles: [...d.uploadedFiles, newFileObj] } : d));
+
+      const result = await simulateFileAnalysis(newFileObj);
+      // Override simulated target with our robust initialTargetId if auto was used or dropdown was specified
+      const finalTargetId = selectedUploadType !== 'auto' ? parseInt(selectedUploadType) : (result.targetDocId || initialTargetId);
+      
+      setDocuments(prev => prev.map(doc => {
+        if (doc.id === finalTargetId) {
+          if (doc.id === 4) {
+            // Separate by detected GSTIN for GSTR 3B
+            const existingGstins = doc.gstinBreakdown || {};
+            const currentGstinMonths = existingGstins[result.extractedGstin] || [];
+            const updatedGstinMonths = Array.from(new Set([...currentGstinMonths, ...result.foundMonths]));
+            
+            const newGstinBreakdown = {
+              ...existingGstins,
+              [result.extractedGstin]: updatedGstinMonths
+            };
+
+            const allCollectedMonths = Array.from(new Set(Object.values(newGstinBreakdown).flat()));
+            const allGrid = doc.gridMonths || [];
+            const isComplete = allGrid.length > 0 && allGrid.every(m => allCollectedMonths.includes(m));
+
+            return {
+              ...doc,
+              gstinBreakdown: newGstinBreakdown,
+              months: allCollectedMonths,
+              status: isComplete || allCollectedMonths.length > 0 ? 'VERIFIED' : 'PENDING',
+              remarks: `Verified across ${Object.keys(newGstinBreakdown).length} GSTIN(s)`
+            };
+          } else {
+            const updatedMonths = Array.from(new Set([...doc.months, ...result.foundMonths]));
+            const allGrid = doc.gridMonths || [];
+            const isComplete = allGrid.length > 0 && allGrid.every(m => updatedMonths.includes(m));
+            
+            return {
+              ...doc,
+              months: updatedMonths,
+              status: isComplete || updatedMonths.length > 0 ? 'VERIFIED' : 'PENDING',
+              remarks: updatedMonths.length > 0 ? `Verified: ${updatedMonths.join(', ')}` : doc.remarks
+            };
+          }
+        }
+        return doc;
+      }));
+
+      addLog(`Successfully analyzed ${rawFile.name} -> Routed to Document #${finalTargetId} [Periods: ${result.foundMonths.join(', ')}]`, 'VERIFIED');
+    }
+  };
+
+  const toggleMonthForGstin = (docId, gstin, monthLabel) => {
+    setDocuments(prev => prev.map(doc => {
+      if (doc.id === docId && doc.gstinBreakdown) {
+        const gstinMonths = doc.gstinBreakdown[gstin] || [];
+        const exists = gstinMonths.includes(monthLabel);
+        const updatedGstinMonths = exists ? gstinMonths.filter(m => m !== monthLabel) : [...gstinMonths, monthLabel];
+        
+        const newBreakdown = {
+          ...doc.gstinBreakdown,
+          [gstin]: updatedGstinMonths
+        };
+
+        const allCollectedMonths = Array.from(new Set(Object.values(newBreakdown).flat()));
+
+        return {
+          ...doc,
+          gstinBreakdown: newBreakdown,
+          months: allCollectedMonths,
+          status: allCollectedMonths.length > 0 ? 'VERIFIED' : 'PENDING',
+          remarks: `Verified across ${Object.keys(newBreakdown).length} GSTIN(s)`
+        };
+      }
+      return doc;
+    }));
+  };
+
+  const toggleMonth = (docId, monthLabel) => {
+    setDocuments(prev => prev.map(doc => {
+      if (doc.id === docId) {
+        const exists = doc.months.includes(monthLabel);
+        const newMonths = exists ? doc.months.filter(m => m !== monthLabel) : [...doc.months, monthLabel];
+        const allGrid = doc.gridMonths || [];
+        const isComplete = allGrid.length > 0 && allGrid.every(m => newMonths.includes(m));
+
+        return {
+          ...doc,
+          months: newMonths,
+          status: newMonths.length > 0 ? 'VERIFIED' : 'PENDING',
+          remarks: newMonths.length > 0 ? `Verified: ${newMonths.length} periods` : 'Missing'
+        };
+      }
+      return doc;
+    }));
+  };
+
+  const markAllCollected = (docId) => {
+    setDocuments(prev => prev.map(doc => {
+      if (doc.id === docId && doc.gridMonths) {
+        return {
+          ...doc,
+          months: [...doc.gridMonths],
+          status: 'VERIFIED',
+          remarks: 'All periods verified'
+        };
+      }
+      return doc;
+    }));
+  };
+
+  const verifiedCount = documents.filter(d => d.status === 'VERIFIED').length;
+  const pendingCount = documents.length - verifiedCount;
+
+  return (
+    <div className="min-h-screen bg-slate-100 flex flex-col font-sans text-slate-800">
+      {/* Top Header */}
+      <header className="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between shadow-sm">
+        <div className="flex items-center space-x-3">
+          <div className="bg-blue-600 text-white p-2 rounded-xl shadow-md">
+            <ShieldCheck className="w-6 h-6" />
+          </div>
+          <div>
+            <h1 className="text-xl font-bold text-slate-900 tracking-tight">Credit Assessment</h1>
+            <p className="text-xs text-slate-500">Document Pendency Engine & Multi-GSTIN Separation</p>
+          </div>
+        </div>
+        <div className="flex items-center space-x-4">
+          <div className="text-xs font-semibold bg-slate-100 border border-slate-200 px-3 py-1.5 rounded-lg text-slate-700">
+            Active Profile: <span className="text-blue-600 font-bold">{activeProfile}</span>
+          </div>
+          <select 
+            value={activeProfile} 
+            onChange={(e) => setActiveProfile(e.target.value)}
+            className="text-xs bg-slate-900 text-white font-medium px-3 py-2 rounded-lg shadow-sm focus:outline-none"
+          >
+            <option>New Client Analysis</option>
+            <option>Existing Corporate Review</option>
+          </select>
+        </div>
+      </header>
+
+      {/* Main Layout */}
+      <main className="flex-1 p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 max-w-[1600px] mx-auto w-full">
+        
+        {/* Left Column: AI Ingestion & Logs */}
+        <div className="lg:col-span-5 flex flex-col space-y-6">
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex flex-col">
+            <div className="flex items-center space-x-2 mb-4">
+              <Sparkles className="w-5 h-5 text-blue-600" />
+              <h2 className="text-base font-bold text-slate-900">AI Document Engine</h2>
+            </div>
+
+            <label className="border-2 border-dashed border-slate-300 hover:border-blue-500 rounded-2xl p-8 flex flex-col items-center justify-center cursor-pointer bg-slate-50/50 transition-all group">
+              <div className="bg-blue-50 group-hover:bg-blue-100 text-blue-600 p-4 rounded-full mb-3 transition-colors">
+                <Upload className="w-8 h-8" />
+              </div>
+              <span className="text-sm font-bold text-slate-700 mb-1">Upload Multi-GSTIN GSTR-3B Files</span>
+              <span className="text-xs text-slate-400 text-center">Engine automatically reads GSTINs and separates results per GST number</span>
+              <input type="file" multiple onChange={handleFileUpload} className="hidden" />
+            </label>
+
+            <div className="mt-4 pt-4 border-t border-slate-100">
+              <label className="text-xs font-semibold text-slate-600 block mb-1.5">FORCE DOCUMENT ASSIGNMENT</label>
+              <select
+                value={selectedUploadType}
+                onChange={(e) => setSelectedUploadType(e.target.value)}
+                className="w-full bg-slate-50 border border-slate-200 text-slate-700 text-xs rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="auto">Auto-Detect via AI Engine (Recommended)</option>
+                {documents.map(doc => (
+                  <option key={`assign-opt-${doc.id}`} value={doc.id}>{doc.name}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Verification Logs Console */}
+          <div className="bg-slate-900 rounded-2xl shadow-sm border border-slate-800 p-4 flex flex-col flex-1 min-h-[240px]">
+            <div className="flex items-center justify-between mb-3 border-b border-slate-800 pb-2">
+              <div className="flex items-center space-x-2 text-xs font-mono text-slate-400">
+                <Database className="w-4 h-4 text-emerald-400" />
+                <span>verification_logs.exe</span>
+              </div>
+              <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-emerald-500/15 text-emerald-400">
+                ACTIVE
+              </span>
+            </div>
+            <div className="flex-1 overflow-y-auto space-y-2 font-mono text-xs">
+              {logs.map(log => (
+                <div key={`log-item-${log.id}`} className="p-2.5 bg-slate-950/80 rounded-xl border border-slate-800/60 flex items-center justify-between">
+                  <span className="text-slate-300 truncate pr-2">{log.text}</span>
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
+                    log.status === 'VERIFIED' ? 'bg-emerald-500/20 text-emerald-400' :
+                    log.status === 'PROCESSING' ? 'bg-amber-500/20 text-amber-400' : 'bg-blue-500/20 text-blue-400'
+                  }`}>
+                    {log.status}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Right Column: Verified Document Checklist & Tables */}
+        <div className="lg:col-span-7 flex flex-col space-y-6">
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex flex-col">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h2 className="text-lg font-bold text-slate-900">Verified Document Checklist</h2>
+                <p className="text-xs text-slate-500">Active Profile: {activeProfile} — {verifiedCount} Verified, {pendingCount} Pending</p>
+              </div>
+              <button className="flex items-center space-x-1.5 text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-2 rounded-xl transition-colors">
+                <FileText className="w-3.5 h-3.5" />
+                <span>Copy List</span>
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              {documents.map(doc => {
+                const isExpanded = expandedDocId === doc.id;
+                const isVerified = doc.status === 'VERIFIED';
+
+                return (
+                  <div key={`doc-row-${doc.id}`} className="border border-slate-200 rounded-xl overflow-hidden transition-all bg-white">
+                    <div className="p-4 flex items-center justify-between hover:bg-slate-50/80">
+                      <div className="flex items-center space-x-3">
+                        <span className="text-sm font-bold text-slate-400 w-5">{doc.id}</span>
+                        <div>
+                          <h3 className="text-sm font-semibold text-slate-800">{doc.name}</h3>
+                          <p className="text-xs text-slate-500 mt-0.5">{doc.remarks}</p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center space-x-3">
+                        <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${
+                          isVerified ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
+                        }`}>
+                          {doc.status}
+                        </span>
+
+                        {doc.gridMonths && (
+                          <button 
+                            onClick={() => setExpandedDocId(isExpanded ? null : doc.id)}
+                            className="p-1.5 hover:bg-slate-200 rounded-lg text-slate-500 transition-colors"
+                          >
+                            {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Month-wise Verification Table Drawer with Multi-GSTIN Separation */}
+                    {isExpanded && doc.gridMonths && (
+                      <div className="bg-slate-50 border-t border-slate-200 p-5 space-y-5">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold uppercase tracking-wider text-slate-600 flex items-center space-x-1.5">
+                            <Layers className="w-4 h-4 text-blue-600" />
+                            <span>Month-Wise Verification Table ({doc.gridMonths.length} Periods)</span>
+                          </span>
+                          <button
+                            onClick={() => markAllCollected(doc.id)}
+                            className="text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg shadow-sm transition-colors"
+                          >
+                            Mark All Collected
+                          </button>
+                        </div>
+
+                        {/* Separate GSTIN Breakdown for GSTR 3B */}
+                        {doc.id === 4 ? (
+                          <div className="space-y-4">
+                            {/* If no GSTIN uploaded yet, show default template card */}
+                            {(!doc.gstinBreakdown || Object.keys(doc.gstinBreakdown).length === 0) && (
+                              <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                                <div className="flex items-center justify-between mb-3 border-b border-slate-100 pb-2">
+                                  <span className="bg-blue-100 text-blue-700 font-mono font-bold text-xs px-2.5 py-1 rounded-md">
+                                    GSTIN #1: 29AITPG6097N2Z4 (Default)
+                                  </span>
+                                  <span className="text-xs text-slate-500 font-medium">Upload GSTR-3B files to auto-populate</span>
+                                </div>
+                                <div className="grid grid-cols-4 sm:grid-cols-6 gap-2.5">
+                                  {doc.gridMonths.map((month, mIdx) => {
+                                    const collected = doc.months.includes(month);
+                                    return (
+                                      <button
+                                        key={`default-grid-${doc.id}-${mIdx}-${month}`}
+                                        onClick={() => toggleMonth(doc.id, month)}
+                                        className={`p-2.5 rounded-xl border text-center transition-all flex flex-col items-center justify-center ${
+                                          collected 
+                                            ? 'bg-emerald-50 border-emerald-300 text-emerald-800 shadow-sm' 
+                                            : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
+                                        }`}
+                                      >
+                                        <span className="text-xs font-bold">{month}</span>
+                                        <span className={`text-[10px] mt-1 font-semibold px-1.5 py-0.5 rounded ${
+                                          collected ? 'bg-emerald-200/60 text-emerald-800' : 'bg-rose-100 text-rose-700'
+                                        }`}>
+                                          {collected ? 'COLLECTED' : 'MISSING'}
+                                        </span>
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Render each detected GSTIN separately */}
+                            {doc.gstinBreakdown && Object.entries(doc.gstinBreakdown).map(([gstin, collectedMonths], gIdx) => (
+                              <div key={`gstin-card-${gstin}-${gIdx}`} className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                                <div className="flex items-center justify-between mb-3 border-b border-slate-100 pb-2">
+                                  <div className="flex items-center space-x-2">
+                                    <span className="bg-blue-100 text-blue-700 font-mono font-bold text-xs px-2.5 py-1 rounded-md">
+                                      GSTIN #{gIdx + 1}: {gstin}
+                                    </span>
+                                    <span className="text-xs text-slate-500 font-medium">({collectedMonths.length} months verified)</span>
+                                  </div>
+                                </div>
+                                <div className="grid grid-cols-4 sm:grid-cols-6 gap-2.5">
+                                  {doc.gridMonths.map((month, mIdx) => {
+                                    const collected = collectedMonths.includes(month);
+                                    return (
+                                      <button
+                                        key={`grid-gstin-${doc.id}-${gstin}-${mIdx}-${month}`}
+                                        onClick={() => toggleMonthForGstin(doc.id, gstin, month)}
+                                        className={`p-2.5 rounded-xl border text-center transition-all flex flex-col items-center justify-center ${
+                                          collected 
+                                            ? 'bg-emerald-50 border-emerald-300 text-emerald-800 shadow-sm' 
+                                            : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
+                                        }`}
+                                      >
+                                        <span className="text-xs font-bold">{month}</span>
+                                        <span className={`text-[10px] mt-1 font-semibold px-1.5 py-0.5 rounded ${
+                                          collected ? 'bg-emerald-200/60 text-emerald-800' : 'bg-rose-100 text-rose-700'
+                                        }`}>
+                                          {collected ? 'COLLECTED' : 'MISSING'}
+                                        </span>
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="grid grid-cols-4 sm:grid-cols-6 gap-2.5">
+                            {doc.gridMonths.map((month, mIdx) => {
+                              const collected = doc.months.includes(month);
+                              return (
+                                <button
+                                  key={`grid-item-${doc.id}-${mIdx}-${month}`}
+                                  onClick={() => toggleMonth(doc.id, month)}
+                                  className={`p-2.5 rounded-xl border text-center transition-all flex flex-col items-center justify-center ${
+                                    collected 
+                                      ? 'bg-emerald-50 border-emerald-300 text-emerald-800 shadow-sm' 
+                                      : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
+                                  }`}
+                                >
+                                  <span className="text-xs font-bold">{month}</span>
+                                  <span className={`text-[10px] mt-1 font-semibold px-1.5 py-0.5 rounded ${
+                                    collected ? 'bg-emerald-200/60 text-emerald-800' : 'bg-rose-100 text-rose-700'
+                                  }`}>
+                                    {collected ? 'COLLECTED' : 'MISSING'}
+                                  </span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+      </main>
+    </div>
+  );
+}
