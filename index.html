@@ -159,10 +159,10 @@
                 </button>
             </div>
             <p class="text-xs text-slate-500 leading-relaxed">
-                When hosted on GitHub Pages, Google requires an API key from <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer" class="text-blue-600 underline font-medium">Google AI Studio</a>. Your key is stored locally in your browser.
+                Paste your Google AI Studio Gemini API Key (starts with <code class="bg-slate-100 px-1 py-0.5 rounded font-mono text-slate-700">AQ.</code> or <code class="bg-slate-100 px-1 py-0.5 rounded font-mono text-slate-700">AIza</code>). It is sent securely via the <code class="bg-slate-100 px-1 py-0.5 rounded font-mono text-slate-700">x-goog-api-key</code> header.
             </p>
             <div>
-                <input id="geminiApiKeyInput" type="password" placeholder="AIzaSy..." onkeydown="if(event.key==='Enter') saveApiKey()" class="w-full font-mono bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                <input id="geminiApiKeyInput" type="password" placeholder="AQ... or AIzaSy..." onkeydown="if(event.key==='Enter') saveApiKey()" class="w-full font-mono bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
             </div>
             <div class="flex justify-end space-x-2 pt-2">
                 <button type="button" onclick="closeApiKeyModal()" class="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition-colors">Cancel</button>
@@ -216,8 +216,8 @@
         let activeProfile = 'New Client Analysis';
         let documents = getInitialDocuments(activeProfile);
         let expandedDocId = 3; // Open GSTR-3B by default for visibility
-        const defaultGeminiApiKey = 'AQ.Ab8RN6KstAx9LjYeD4uPJDGP12TXHqeSaSossqwlMWA1T7CeBw';
-        let userGeminiApiKey = localStorage.getItem('credit_engine_gemini_key') || defaultGeminiApiKey;
+        const DEFAULT_GEMINI_KEY = 'AQ.Ab8RN6KstAx9LjYeD4uPJDGP12TXHqeSaSossqwlMWA1T7CeBw';
+        let userGeminiApiKey = localStorage.getItem('credit_engine_gemini_key') || DEFAULT_GEMINI_KEY;
         const uploadedFileStore = {}; // Maps filename -> File/Blob object for ZIP exports
         let itrPasswords = [];
 
@@ -819,10 +819,15 @@ Analyze the attached document deeply across ALL pages and extract structured dat
             let lastErr = null;
 
             for (const modelName of modelsToTry) {
-                const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${encodeURIComponent(userGeminiApiKey)}`;
+                const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent`;
+                const headers = { 'Content-Type': 'application/json' };
+                if (userGeminiApiKey) {
+                    headers['x-goog-api-key'] = userGeminiApiKey;
+                }
+
                 const response = await fetch(url, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: headers,
                     body: JSON.stringify({
                         contents: [{ role: 'user', parts: [...parts, { text: prompt }] }],
                         generationConfig: {
@@ -1082,7 +1087,7 @@ Analyze the attached document deeply across ALL pages and extract structured dat
                 } catch (err) {
                     console.error(err);
                     addLog(`OCR extraction failed for "${rawFile.name}": ${err.message}`, 'ERROR');
-                    if (String(err.message).includes('403')) {
+                    if (String(err.message).includes('401') || String(err.message).includes('403') || String(err.message).includes('API_KEY_INVALID')) {
                         openApiKeyModal();
                     }
                 }
