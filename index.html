@@ -1734,3 +1734,14 @@ Analyze the attached document deeply across ALL pages and extract structured dat
     </script>
 </body>
 </html>
+function buildGeminiRequestConfig(model, apiKey) {
+    const cleanKey = sanitizeAsciiKey(apiKey);
+    const headers = { 'Content-Type': 'application/json' };
+    if (cleanKey) {
+        headers['x-goog-api-key'] = cleanKey;
+    }
+    return {
+        url: `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+        headers
+    };
+}
