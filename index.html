@@ -217,7 +217,19 @@
         let documents = getInitialDocuments(activeProfile);
         let expandedDocId = 3; // Open GSTR-3B by default for visibility
         const DEFAULT_GEMINI_KEY = 'AQ.Ab8RN6KstAx9LjYeD4uPJDGP12TXHqeSaSossqwlMWA1T7CeBw';
-        let userGeminiApiKey = localStorage.getItem('credit_engine_gemini_key') || DEFAULT_GEMINI_KEY;
+
+        function sanitizeAsciiKey(raw) {
+            // Strip all whitespace and non-ASCII characters so HTTP Headers never throw ISO-8859-1 errors
+            return String(raw || '').replace(/[^\x21-\x7E]/g, '').trim();
+        }
+
+        const storedKeyRaw = localStorage.getItem('credit_engine_gemini_key');
+        const cleanedStoredKey = sanitizeAsciiKey(storedKeyRaw);
+        let userGeminiApiKey = cleanedStoredKey || DEFAULT_GEMINI_KEY;
+        if (storedKeyRaw && storedKeyRaw !== cleanedStoredKey) {
+            localStorage.setItem('credit_engine_gemini_key', userGeminiApiKey);
+        }
+
         const uploadedFileStore = {}; // Maps filename -> File/Blob object for ZIP exports
         let itrPasswords = [];
 
@@ -249,15 +261,10 @@
 
         function saveApiKey() {
             const input = document.getElementById('geminiApiKeyInput');
-            const val = input ? input.value.trim() : '';
-            userGeminiApiKey = val;
-            if (val) {
-                localStorage.setItem('credit_engine_gemini_key', val);
-                addLog('Google Gemini API Key saved to browser storage.', 'VERIFIED');
-            } else {
-                localStorage.removeItem('credit_engine_gemini_key');
-                addLog('Google Gemini API Key cleared.', 'INFO');
-            }
+            const val = sanitizeAsciiKey(input ? input.value : '');
+            userGeminiApiKey = val || DEFAULT_GEMINI_KEY;
+            localStorage.setItem('credit_engine_gemini_key', userGeminiApiKey);
+            addLog('Google Gemini API Key updated & sanitized.', 'VERIFIED');
             updateApiKeyButtonUI();
             closeApiKeyModal();
         }
@@ -651,7 +658,7 @@
                         const entries = Object.values(zip.files).filter(entry => !entry.dir && !entry.name.startsWith('__MACOSX') && !entry.name.split('/').pop().startsWith('.'));
                         for (const entry of entries) {
                             const blob = await entry.async('blob');
-                            const cleanName = entry.name.replace(/\//g, ' › ');
+                            const cleanName = entry.name.replace(/\//g, ' - ');
                             const innerFile = new File([blob], cleanName, { type: getMimeType({ name: entry.name }) });
                             expanded.push(innerFile);
                         }
@@ -817,12 +824,14 @@ Analyze the attached document deeply across ALL pages and extract structured dat
 
             const modelsToTry = ['gemini-3-flash-preview', 'gemini-3.1-flash-lite-preview', 'gemini-2.5-pro'];
             let lastErr = null;
+            const cleanApiKey = sanitizeAsciiKey(userGeminiApiKey);
 
             for (const modelName of modelsToTry) {
                 const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent`;
-                const headers = { 'Content-Type': 'application/json' };
-                if (userGeminiApiKey) {
-                    headers['x-goog-api-key'] = userGeminiApiKey;
+                const headers = new Headers();
+                headers.set('Content-Type', 'application/json');
+                if (cleanApiKey) {
+                    headers.set('x-goog-api-key', cleanApiKey);
                 }
 
                 const response = await fetch(url, {
@@ -1081,7 +1090,7 @@ Analyze the attached document deeply across ALL pages and extract structured dat
                     const itrPanLog = (targetId === 2 && aiResult.itrAnalysis?.pan) ? ` | PAN: ${aiResult.itrAnalysis.pan} (${aiResult.itrAnalysis.assessmentYear || ''})` : '';
                     const acctLog = (targetId === 4 && aiResult.bankAccountPeriods?.length) ? ` | A/c: ${Array.from(new Set(aiResult.bankAccountPeriods.map(a => normalizeAccountKey(a.accountNumber)).filter(Boolean))).join(', ')}` : '';
                     const periodLog = extractedMonths.length ? ` | Periods (${extractedMonths.length}): ${extractedMonths.join(', ')}` : '';
-                    addLog(`OCR Verified "${rawFile.name}" → Doc #${targetId} (${aiResult.documentTypeLabel})${gstLog}${itrPanLog}${acctLog}${periodLog}`, 'VERIFIED');
+                    addLog(`OCR Verified "${rawFile.name}" -> Doc #${targetId} (${aiResult.documentTypeLabel})${gstLog}${itrPanLog}${acctLog}${periodLog}`, 'VERIFIED');
                     renderDocuments();
 
                 } catch (err) {
