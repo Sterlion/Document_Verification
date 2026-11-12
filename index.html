@@ -36,9 +36,9 @@
             <div class="hidden sm:block text-xs font-semibold bg-slate-100 border border-slate-200 px-3 py-2 rounded-lg text-slate-700">
                 Active Profile: <span id="activeProfileLabel" class="text-blue-600 font-bold">New Client Analysis</span>
             </div>
-            <button id="apiKeyBtn" type="button" onclick="openApiKeyModal()" class="text-xs bg-amber-50 hover:bg-amber-100 text-amber-800 font-semibold px-3 py-2 rounded-lg border border-amber-200 transition-colors flex items-center space-x-1.5">
+            <button id="apiKeyBtn" type="button" onclick="openApiKeyModal()" class="text-xs bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-semibold px-3 py-2 rounded-lg border border-emerald-200 transition-colors flex items-center space-x-1.5">
                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"></path></svg>
-                <span id="apiKeyBtnLabel">Set API Key</span>
+                <span id="apiKeyBtnLabel">API Key Set</span>
             </button>
             <select id="profileSelect" onchange="changeProfile(this.value)" class="text-xs bg-slate-900 text-white font-medium px-3.5 py-2 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer">
                 <option value="New Client Analysis">New Client Analysis</option>
@@ -149,7 +149,7 @@
         </div>
     </div>
 
-    <!-- Custom Modal for Gemini API Key (Required for GitHub Pages / External Hosting) -->
+    <!-- Custom Modal for Gemini API Key -->
     <div id="apiKeyModal" class="hidden fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
         <div class="bg-white rounded-2xl shadow-xl border border-slate-200 max-w-md w-full p-6 space-y-4">
             <div class="flex items-center justify-between">
@@ -220,4 +220,1409 @@
         let userGeminiApiKey = localStorage.getItem('credit_engine_gemini_key') || defaultGeminiApiKey;
         const uploadedFileStore = {}; // Maps filename -> File/Blob object for ZIP exports
         let itrPasswords = [];
-// ... existing code ... -->
+
+        function updateApiKeyButtonUI() {
+            const btn = document.getElementById('apiKeyBtn');
+            const label = document.getElementById('apiKeyBtnLabel');
+            if (!btn || !label) return;
+            if (userGeminiApiKey) {
+                btn.className = 'text-xs bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-semibold px-3 py-2 rounded-lg border border-emerald-200 transition-colors flex items-center space-x-1.5';
+                label.innerText = 'API Key Set';
+            } else {
+                btn.className = 'text-xs bg-amber-50 hover:bg-amber-100 text-amber-800 font-semibold px-3 py-2 rounded-lg border border-amber-200 transition-colors flex items-center space-x-1.5';
+                label.innerText = 'Set API Key';
+            }
+        }
+
+        function openApiKeyModal() {
+            const modal = document.getElementById('apiKeyModal');
+            const input = document.getElementById('geminiApiKeyInput');
+            if (input) input.value = userGeminiApiKey;
+            if (modal) modal.classList.remove('hidden');
+            setTimeout(() => input && input.focus(), 50);
+        }
+
+        function closeApiKeyModal() {
+            const modal = document.getElementById('apiKeyModal');
+            if (modal) modal.classList.add('hidden');
+        }
+
+        function saveApiKey() {
+            const input = document.getElementById('geminiApiKeyInput');
+            const val = input ? input.value.trim() : '';
+            userGeminiApiKey = val;
+            if (val) {
+                localStorage.setItem('credit_engine_gemini_key', val);
+                addLog('Google Gemini API Key saved to browser storage.', 'VERIFIED');
+            } else {
+                localStorage.removeItem('credit_engine_gemini_key');
+                addLog('Google Gemini API Key cleared.', 'INFO');
+            }
+            updateApiKeyButtonUI();
+            closeApiKeyModal();
+        }
+
+        function addLog(text, status = 'INFO') {
+            const logsContainer = document.getElementById('logsContainer');
+            if (!logsContainer) return;
+            const badgeColor =
+                status === 'VERIFIED' ? 'bg-emerald-500/25 text-emerald-400' :
+                status === 'PROCESSING' ? 'bg-amber-500/25 text-amber-400' :
+                status === 'ERROR' ? 'bg-rose-500/25 text-rose-400' :
+                'bg-blue-500/25 text-blue-400';
+
+            const item = document.createElement('div');
+            item.className = 'p-2.5 bg-slate-950/80 rounded-xl border border-slate-800/60 flex items-start justify-between gap-2';
+            item.innerHTML = `<span class="text-slate-300 break-words leading-relaxed">${escapeHtml(text)}</span><span class="text-[10px] font-bold px-2 py-0.5 rounded shrink-0 ${badgeColor}">${status}</span>`;
+            logsContainer.prepend(item);
+        }
+
+        function clearLogs() {
+            const logsContainer = document.getElementById('logsContainer');
+            if (logsContainer) logsContainer.innerHTML = '';
+            addLog('Console cleared. Ready for ingestion.', 'INFO');
+        }
+
+        function escapeHtml(str) {
+            return String(str || '').replace(/[&<>"']/g, m => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+            }[m]));
+        }
+
+        function normalizeAccountKey(rawAcct) {
+            const cleaned = String(rawAcct || '').trim().toUpperCase();
+            if (!cleaned) return '';
+            const digitsOnly = cleaned.replace(/\D/g, '');
+            if (digitsOnly.length >= 6) {
+                const stripped = digitsOnly.replace(/^0+/, '');
+                return stripped || digitsOnly;
+            }
+            return cleaned.replace(/[^A-Z0-9]/g, '');
+        }
+
+        function updateItrPendingAys(val) {
+            const parsed = val.split(',').map(s => s.trim().toUpperCase()).filter(Boolean);
+            const targetAys = parsed.length > 0 ? parsed : ['AY 2024-25', 'AY 2025-26', 'AY 2026-27'];
+            documents = documents.map(doc => {
+                if (doc.id !== 2) return doc;
+                return recalculateDocState({ ...doc, gridMonths: targetAys });
+            });
+            renderDocuments();
+        }
+
+        function updateItrPasswords(val) {
+            itrPasswords = val.split(',').map(s => s.trim()).filter(Boolean);
+        }
+
+        function isAyCleared(entity, ay) {
+            const ayRow = (entity.availability && entity.availability[ay]) || {};
+            const requiredKeys = itrDocCols.map(c => c.key);
+            let hasAtLeastOneAvailable = false;
+            for (const key of requiredKeys) {
+                const cell = ayRow[key] || { status: 'Pending', fileName: '' };
+                if (cell.status === 'Pending' || cell.status === 'Unreadable') {
+                    return false;
+                }
+                if (cell.status === 'Available') {
+                    hasAtLeastOneAvailable = true;
+                }
+            }
+            return hasAtLeastOneAvailable;
+        }
+
+        function getAyPendingLabels(entity, ay) {
+            const ayRow = (entity.availability && entity.availability[ay]) || {};
+            const missing = [];
+            for (const col of itrDocCols) {
+                const cell = ayRow[col.key] || { status: 'Pending', fileName: '' };
+                if (cell.status === 'Pending' || cell.status === 'Unreadable') {
+                    missing.push(`${col.label}${cell.status === 'Unreadable' ? ' (Unreadable)' : ''}`);
+                }
+            }
+            return missing;
+        }
+
+        function cycleItrCellStatus(panKey, ay, colKey) {
+            const order = ['Pending', 'Available', 'Not applicable', 'Unreadable'];
+            documents = documents.map(doc => {
+                if (doc.id !== 2) return doc;
+                const entities = { ...(doc.itrEntities || {}) };
+                if (!entities[panKey]) return doc;
+                const entity = { ...entities[panKey] };
+                const availability = { ...(entity.availability || {}) };
+                const ayRow = { ...(availability[ay] || {}) };
+                const curr = ayRow[colKey] || { status: 'Pending', fileName: '' };
+                const nextStatus = order[(order.indexOf(curr.status) + 1) % order.length];
+                ayRow[colKey] = { ...curr, status: nextStatus };
+                availability[ay] = ayRow;
+                entity.availability = availability;
+                entities[panKey] = entity;
+                return recalculateDocState({ ...doc, itrEntities: entities });
+            });
+            renderDocuments();
+        }
+
+        function recalculateDocState(doc) {
+            if (doc.id === 2) {
+                const entities = doc.itrEntities || {};
+                const panKeys = Object.keys(entities);
+                const targetAys = doc.gridMonths || ['AY 2024-25', 'AY 2025-26', 'AY 2026-27'];
+
+                if (panKeys.length === 0) {
+                    const invCount = (doc.itrInventory || []).length;
+                    return {
+                        ...doc,
+                        months: [],
+                        status: 'PENDING',
+                        remarks: invCount > 0 ? `${invCount} file(s) inventoried; awaiting valid ITR/Financials` : `Pending: ${targetAys.join(', ')}`
+                    };
+                }
+
+                let clearedAysGlobal = new Set();
+                let entitySummaries = [];
+
+                panKeys.forEach(pan => {
+                    const ent = entities[pan];
+                    const clearedForPan = targetAys.filter(ay => isAyCleared(ent, ay));
+                    clearedForPan.forEach(ay => clearedAysGlobal.add(ay));
+                    const pendingForPan = targetAys.filter(ay => !isAyCleared(ent, ay));
+                    entitySummaries.push(`${pan}: ${clearedForPan.length}/${targetAys.length} AYs cleared${pendingForPan.length ? ` (Pending: ${pendingForPan.join(', ')})` : ''}`);
+                });
+
+                const allEntitiesCleared = panKeys.every(pan => targetAys.every(ay => isAyCleared(entities[pan], ay)));
+                const anyProgress = clearedAysGlobal.size > 0 || panKeys.length > 0;
+
+                return {
+                    ...doc,
+                    months: Array.from(clearedAysGlobal),
+                    status: allEntitiesCleared ? 'VERIFIED' : (anyProgress ? 'PARTIAL' : 'PENDING'),
+                    remarks: entitySummaries.join(' | ')
+                };
+            }
+
+            if (!doc.gridMonths) {
+                return {
+                    ...doc,
+                    status: doc.months.length > 0 ? 'VERIFIED' : 'PENDING',
+                    remarks: doc.months.length > 0 ? `Verified (${doc.uploadedFiles.length || 1} file(s) on record)` : 'Missing'
+                };
+            }
+
+            const totalRequired = doc.gridMonths.length;
+            let collectedSet = new Set(doc.months);
+
+            if (doc.id === 3 && doc.gstinBreakdown) {
+                collectedSet = new Set(Object.values(doc.gstinBreakdown).flat());
+            } else if (doc.id === 4 && doc.bankBreakdown) {
+                collectedSet = new Set(Object.values(doc.bankBreakdown).flat());
+            }
+
+            const validCollected = doc.gridMonths.filter(m => collectedSet.has(m));
+            const missing = doc.gridMonths.filter(m => !collectedSet.has(m));
+
+            let status = 'PENDING';
+            let remarks = '';
+
+            if (validCollected.length === 0) {
+                status = 'PENDING';
+                remarks = `Missing: ${doc.gridMonths[0]} to ${doc.gridMonths[totalRequired - 1]}`;
+            } else if (missing.length === 0) {
+                status = 'VERIFIED';
+                if (doc.id === 3 && doc.gstinBreakdown) {
+                    remarks = `All ${totalRequired} periods verified across ${Object.keys(doc.gstinBreakdown).length} GSTIN(s)`;
+                } else if (doc.id === 4 && doc.bankBreakdown) {
+                    const accts = Object.keys(doc.bankBreakdown);
+                    remarks = `All ${totalRequired} periods verified${accts.length ? ` across ${accts.length} Account(s)` : ''}`;
+                } else {
+                    remarks = `All ${totalRequired} periods verified`;
+                }
+            } else {
+                status = 'PARTIAL';
+                const previewMissing = missing.slice(0, 4).join(', ') + (missing.length > 4 ? ` (+${missing.length - 4} more)` : '');
+                remarks = `Collected ${validCollected.length}/${totalRequired} • Missing: ${previewMissing}`;
+            }
+
+            return { ...doc, months: validCollected, status, remarks };
+        }
+
+        function changeProfile(val) {
+            activeProfile = val;
+            document.getElementById('activeProfileLabel').innerText = val;
+            documents = getInitialDocuments(val);
+            addLog(`Switched assessment profile to "${val}". Checklist timeframes updated.`, 'INFO');
+            renderDocuments();
+        }
+
+        function resetAll() {
+            documents = getInitialDocuments(activeProfile);
+            expandedDocId = 3;
+            itrPasswords = [];
+            Object.keys(uploadedFileStore).forEach(k => delete uploadedFileStore[k]);
+            clearLogs();
+            addLog('Workspace reset to initial state.', 'INFO');
+            renderDocuments();
+        }
+
+        function toggleExpand(id) {
+            expandedDocId = expandedDocId === id ? null : id;
+            renderDocuments();
+        }
+
+        function toggleSimpleDoc(id) {
+            documents = documents.map(d => {
+                if (d.id === id && !d.gridMonths) {
+                    const nextMonths = d.months.length > 0 ? [] : ['Manually Verified'];
+                    return recalculateDocState({ ...d, months: nextMonths });
+                }
+                return d;
+            });
+            renderDocuments();
+        }
+
+        function markAll(id) {
+            documents = documents.map(d => {
+                if (d.id === id && d.gridMonths) {
+                    if (d.id === 2) {
+                        const entities = { ...(d.itrEntities || {}) };
+                        const panKeys = Object.keys(entities);
+                        if (panKeys.length === 0) return d;
+                        panKeys.forEach(pan => {
+                            const ent = { ...entities[pan] };
+                            const availability = { ...(ent.availability || {}) };
+                            d.gridMonths.forEach(ay => {
+                                const ayRow = { ...(availability[ay] || {}) };
+                                itrDocCols.forEach(col => {
+                                    const existing = ayRow[col.key] || { status: 'Pending', fileName: '' };
+                                    if (existing.status !== 'Not applicable') {
+                                        ayRow[col.key] = { ...existing, status: 'Available' };
+                                    }
+                                });
+                                availability[ay] = ayRow;
+                            });
+                            ent.availability = availability;
+                            entities[pan] = ent;
+                        });
+                        return recalculateDocState({ ...d, itrEntities: entities });
+                    }
+                    if (d.id === 3) {
+                        let breakdown = { ...(d.gstinBreakdown || {}) };
+                        const keys = Object.keys(breakdown);
+                        if (keys.length === 0) return d;
+                        keys.forEach(k => { breakdown[k] = [...d.gridMonths]; });
+                        return recalculateDocState({ ...d, gstinBreakdown: breakdown, months: [...d.gridMonths] });
+                    }
+                    if (d.id === 4) {
+                        let bBreakdown = { ...(d.bankBreakdown || {}) };
+                        const acctKeys = Object.keys(bBreakdown);
+                        if (acctKeys.length > 0) {
+                            acctKeys.forEach(k => { bBreakdown[k] = [...d.gridMonths]; });
+                        }
+                        return recalculateDocState({ ...d, bankBreakdown: bBreakdown, months: [...d.gridMonths] });
+                    }
+                    return recalculateDocState({ ...d, months: [...d.gridMonths] });
+                }
+                return d;
+            });
+            renderDocuments();
+        }
+
+        function toggleMonthDirect(docId, month) {
+            documents = documents.map(doc => {
+                if (doc.id === docId) {
+                    let exists = doc.months.includes(month);
+                    let newMonths = exists ? doc.months.filter(m => m !== month) : [...doc.months, month];
+                    return recalculateDocState({ ...doc, months: newMonths });
+                }
+                return doc;
+            });
+            renderDocuments();
+        }
+
+        function toggleGstinMonth(docId, gstin, month) {
+            documents = documents.map(doc => {
+                if (doc.id === docId && doc.gstinBreakdown) {
+                    let gList = doc.gstinBreakdown[gstin] || [];
+                    let exists = gList.includes(month);
+                    let updated = exists ? gList.filter(m => m !== month) : [...gList, month];
+                    let newBreakdown = { ...doc.gstinBreakdown, [gstin]: updated };
+                    return recalculateDocState({ ...doc, gstinBreakdown: newBreakdown });
+                }
+                return doc;
+            });
+            renderDocuments();
+        }
+
+        function toggleBankAccountMonth(docId, acctKey, month) {
+            documents = documents.map(doc => {
+                if (doc.id === docId && doc.bankBreakdown) {
+                    let bList = doc.bankBreakdown[acctKey] || [];
+                    let exists = bList.includes(month);
+                    let updated = exists ? bList.filter(m => m !== month) : [...bList, month];
+                    let newBreakdown = { ...doc.bankBreakdown, [acctKey]: updated };
+                    return recalculateDocState({ ...doc, bankBreakdown: newBreakdown });
+                }
+                return doc;
+            });
+            renderDocuments();
+        }
+
+        // Modal controls for Adding GSTIN
+        function openAddGstinModal() {
+            const modal = document.getElementById('addGstinModal');
+            const input = document.getElementById('newGstinInput');
+            const err = document.getElementById('gstinModalError');
+            input.value = '';
+            err.classList.add('hidden');
+            modal.classList.remove('hidden');
+            setTimeout(() => input.focus(), 50);
+        }
+
+        function closeAddGstinModal() {
+            document.getElementById('addGstinModal').classList.add('hidden');
+        }
+
+        function confirmAddGstin() {
+            const input = document.getElementById('newGstinInput');
+            const err = document.getElementById('gstinModalError');
+            const val = input.value.trim().toUpperCase();
+            const gstRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
+
+            if (!gstRegex.test(val)) {
+                err.innerText = 'Please enter a valid 15-character GSTIN (e.g., 29AITPG6097N2Z4).';
+                err.classList.remove('hidden');
+                return;
+            }
+
+            documents = documents.map(doc => {
+                if (doc.id === 3) {
+                    const breakdown = { ...(doc.gstinBreakdown || {}) };
+                    const gFiles = { ...(doc.gstinFiles || {}) };
+                    if (!breakdown[val]) breakdown[val] = [];
+                    if (!gFiles[val]) gFiles[val] = [];
+                    return recalculateDocState({ ...doc, gstinBreakdown: breakdown, gstinFiles: gFiles });
+                }
+                return doc;
+            });
+
+            addLog(`Added new GSTIN entity ${val} to GSTR-3B tracker.`, 'INFO');
+            closeAddGstinModal();
+            renderDocuments();
+        }
+
+        // Convert File/Blob to Base64 for Google Gemini Multimodal API
+        function fileToBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => {
+                    const result = reader.result || '';
+                    const base64 = result.includes(',') ? result.split(',')[1] : result;
+                    resolve(base64);
+                };
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+        }
+
+        function getMimeType(file) {
+            if (file.type) return file.type;
+            const ext = (file.name.split('.').pop() || '').toLowerCase();
+            const map = {
+                'pdf': 'application/pdf',
+                'png': 'image/png',
+                'jpg': 'image/jpeg',
+                'jpeg': 'image/jpeg',
+                'webp': 'image/webp',
+                'csv': 'text/csv',
+                'txt': 'text/plain',
+                'json': 'application/json'
+            };
+            return map[ext] || 'application/octet-stream';
+        }
+
+        // Unpack ZIP files recursively so all nested ITR/GST folders are scanned
+        async function expandUploadedFiles(rawFiles) {
+            const expanded = [];
+            for (const f of rawFiles) {
+                const ext = (f.name.split('.').pop() || '').toLowerCase();
+                if (ext === 'zip' && typeof JSZip !== 'undefined') {
+                    try {
+                        addLog(`Unzipping archive "${f.name}" to inspect nested folders...`, 'PROCESSING');
+                        const zip = await JSZip.loadAsync(f);
+                        const entries = Object.values(zip.files).filter(entry => !entry.dir && !entry.name.startsWith('__MACOSX') && !entry.name.split('/').pop().startsWith('.'));
+                        for (const entry of entries) {
+                            const blob = await entry.async('blob');
+                            const cleanName = entry.name.replace(/\//g, ' › ');
+                            const innerFile = new File([blob], cleanName, { type: getMimeType({ name: entry.name }) });
+                            expanded.push(innerFile);
+                        }
+                        addLog(`Extracted ${entries.length} file(s) from "${f.name}".`, 'INFO');
+                    } catch (zipErr) {
+                        addLog(`Could not extract ZIP "${f.name}": ${zipErr.message}`, 'ERROR');
+                    }
+                } else {
+                    expanded.push(f);
+                }
+            }
+            return expanded;
+        }
+
+        // Deep OCR & Extraction via Google Gemini Backend
+        async function analyzeDocumentWithGemini(file, forceType, currentDocs) {
+            const mimeType = getMimeType(file);
+            const isTextLike = mimeType.startsWith('text/') || mimeType === 'application/json' || file.name.toLowerCase().endsWith('.csv') || file.name.toLowerCase().endsWith('.json');
+            const todayStr = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+            const itrDoc = currentDocs.find(d => d.id === 2);
+            const targetAys = (itrDoc && itrDoc.gridMonths) ? itrDoc.gridMonths.join(', ') : 'AY 2024-25, AY 2025-26, AY 2026-27';
+
+            const parts = [];
+            if (isTextLike) {
+                const textContent = await file.text();
+                parts.push({ text: `Filename: ${file.name}\n\nDocument Content:\n${textContent.slice(0, 120000)}` });
+            } else {
+                const base64Data = await fileToBase64(file);
+                parts.push({
+                    inlineData: {
+                        mimeType: mimeType,
+                        data: base64Data
+                    }
+                });
+                parts.push({ text: `Perform deep OCR and inspect every page of this uploaded file (${file.name}).` });
+            }
+
+            const prompt = `You are a senior Indian Credit Underwriting & Forensic Tax/Financial Document OCR Engine.
+Today's Date: ${todayStr}
+Target Pending ITR Assessment Years: ${targetAys}
+User-Provided Passwords (NEVER guess passwords if not listed here): ${itrPasswords.length > 0 ? itrPasswords.join(', ') : 'None provided'}
+
+Analyze the attached document deeply across ALL pages and extract structured data:
+1. Classify the document into one of the 4 checklist categories (unless forced by forceType="${forceType}"):
+   - 1: GST Certificate & MSME (UDAYAM)
+   - 2: ITR, Financials & Tax Audit (ITR-V / acknowledgement, filed ITR form PDF/JSON, computation of income, P&L, balance sheet and schedules, tax audit report 3CA/3CB-3CD, Form 26AS / AIS, tax challans, or non-tax files uploaded in an ITR bundle)
+   - 3: GSTR 3B (Last 24 months / 12 months)
+   - 4: Bank statements (Single or consolidated multi-month bank statements)
+
+2. General Extraction (for GSTR-3B & Bank Statements):
+   - Extract ALL 15-character Indian GSTINs found anywhere in the document (e.g., 29AITPG6097N2Z4).
+   - Extract ALL covered months/periods in exact "MMM YYYY" format (e.g., "Nov 2024", "Dec 2024", "Jan 2025").
+   - For consolidated bank statements, inspect EVERY page and transaction date range to list EVERY month present in the statement. Group extracted months by exact bank account number in "bankAccountPeriods". Extract the clean account number (e.g., "00000040813525891") and bank name once.
+   - For GSTR-3B returns, map each GSTIN to the exact tax period month(s) filed under that GSTIN in "gstinPeriods".
+
+3. Deep Forensic ITR & Financials Analysis (CRITICAL when documentCategory is 2):
+   - STEP 1 (Inventory): Determine fileType (e.g. "ITR-V Ack", "ITR-3 Form", "Audited Financials", "Tax Audit 3CB-3CD", "Form 26AS/AIS", "Computation", "Non-Tax Document"), pageCount (integer), hasTextLayer (boolean: true if selectable native text, false if scanned image requiring OCR), isLocked (boolean: true if password-protected and unreadable without password), isNonTaxDoc (boolean: true if unrelated to tax/financials), and inventoryNotes.
+   - STEP 2 (Identify ITR & Financials from Contents): Extract PAN (10-char e.g. AABCT1234D; if only financials/audit report exist without PAN, use "UNSPECIFIED_PAN" or extract PAN from CA report/headers), panHolderName (name on PAN/ITR), businessName (trade/proprietorship/firm/company name from P&L/Balance Sheet), entityType ("Proprietorship", "Partnership", "Company", "LLP", "Individual", etc.), assessmentYear ("AY 2024-25", "AY 2025-26", "AY 2026-27"), financialYear ("FY 2023-24", etc.), itrFormType ("ITR-3", "ITR-4", "ITR-5", "ITR-6", etc.), filingSection ("139(1) Original", "139(4) Belated", "139(5) Revised", "142(1) Notice", etc.), filingDate, acknowledgementNumber, eVerificationStatus ("Verified", "Pending / Not Verified", "N/A"), eVerificationDate, grossTotalIncome, deductions, totalIncome, taxPayable, taxesPaid (TDS/TCS/Advance/Self-Assessment), refundOrBalanceDue. Never merge different PANs or taxpayers.
+   - STEP 3 (Detected Document Types for Availability Grid): List which of these exact keys are present in this file for the detected AY: "itrV", "itrForm", "computation", "pnl", "balanceSheet", "schedules", "taxAudit", "ais26as". Also indicate if taxAudit is "Not applicable" (e.g., turnover below audit threshold and no audit report required).
+   - STEP 4 (Filing Status Checks):
+     * dueDateStatus: Check if filed within due date (31 Jul non-audit, 31 Oct audit, or notified extended date) -> mark "On time", "Belated", "Revised", or "N/A (Non-ITR file)".
+     * eVerificationValid: Check if e-verified within 30 days of filing (if unverified, state return is invalid).
+     * ayFinancialsMatch: Check if AY matches P&L and Balance Sheet year-end (e.g. AY 2026-27 = year ended 31-Mar-2026).
+     * formConsistencyCheck: Check if ITR form matches books (flag if ITR-4 presumptive is filed alongside full P&L and Balance Sheet; books normally require ITR-3).
+   - STEP 5 (Signature & Certification Checks on Financials & Schedules):
+     * clientSignatureStatus: Check if signed by proprietor / partner / director (explicitly note that a Proprietorship has no director and treat proprietor signature as equivalent).
+     * caCertificationStatus: Check if signed and stamped by Chartered Accountant, extracting Firm Name, FRN, Membership Number, UDIN, and signing date (NEVER claim to have verified the UDIN on the ICAI portal).
+     * allPagesSignedStatus: Verify whether all financial statement pages including schedules are signed.
+     * turnoverAuditCheck: Check reported turnover/gross receipts against Section 44AB tax audit thresholds (Rs 1 Cr / Rs 10 Cr digital receipts for business; Rs 50 Lakhs for profession) and state whether tax audit report 3CA/3CB-3CD is mandatory.`;
+
+            const responseSchema = {
+                type: "OBJECT",
+                properties: {
+                    documentCategory: { type: "INTEGER", description: "1, 2, 3, or 4" },
+                    documentTypeLabel: { type: "STRING" },
+                    gstins: { type: "ARRAY", items: { type: "STRING" } },
+                    coveredMonths: { type: "ARRAY", items: { type: "STRING" } },
+                    gstinPeriods: {
+                        type: "ARRAY",
+                        items: {
+                            type: "OBJECT",
+                            properties: {
+                                gstin: { type: "STRING" },
+                                months: { type: "ARRAY", items: { type: "STRING" } }
+                            },
+                            required: ["gstin", "months"]
+                        }
+                    },
+                    bankAccountPeriods: {
+                        type: "ARRAY",
+                        items: {
+                            type: "OBJECT",
+                            properties: {
+                                accountNumber: { type: "STRING" },
+                                bankName: { type: "STRING" },
+                                months: { type: "ARRAY", items: { type: "STRING" } }
+                            },
+                            required: ["accountNumber", "months"]
+                        }
+                    },
+                    itrAnalysis: {
+                        type: "OBJECT",
+                        properties: {
+                            inventory: {
+                                type: "OBJECT",
+                                properties: {
+                                    fileType: { type: "STRING" },
+                                    pageCount: { type: "INTEGER" },
+                                    hasTextLayer: { type: "BOOLEAN" },
+                                    isLocked: { type: "BOOLEAN" },
+                                    isNonTaxDoc: { type: "BOOLEAN" },
+                                    notes: { type: "STRING" }
+                                },
+                                required: ["fileType", "pageCount", "hasTextLayer", "isLocked", "isNonTaxDoc", "notes"]
+                            },
+                            pan: { type: "STRING" },
+                            panHolderName: { type: "STRING" },
+                            businessName: { type: "STRING" },
+                            entityType: { type: "STRING" },
+                            assessmentYear: { type: "STRING" },
+                            financialYear: { type: "STRING" },
+                            itrFormType: { type: "STRING" },
+                            filingSection: { type: "STRING" },
+                            filingDate: { type: "STRING" },
+                            acknowledgementNumber: { type: "STRING" },
+                            eVerificationStatus: { type: "STRING" },
+                            eVerificationDate: { type: "STRING" },
+                            grossTotalIncome: { type: "STRING" },
+                            deductions: { type: "STRING" },
+                            totalIncome: { type: "STRING" },
+                            taxPayable: { type: "STRING" },
+                            taxesPaid: { type: "STRING" },
+                            refundOrBalanceDue: { type: "STRING" },
+                            detectedDocTypes: { type: "ARRAY", items: { type: "STRING" } },
+                            taxAuditNotApplicable: { type: "BOOLEAN" },
+                            filingChecks: {
+                                type: "OBJECT",
+                                properties: {
+                                    dueDateStatus: { type: "STRING" },
+                                    eVerificationValid: { type: "STRING" },
+                                    ayFinancialsMatch: { type: "STRING" },
+                                    formConsistencyCheck: { type: "STRING" }
+                                },
+                                required: ["dueDateStatus", "eVerificationValid", "ayFinancialsMatch", "formConsistencyCheck"]
+                            },
+                            signatureChecks: {
+                                type: "OBJECT",
+                                properties: {
+                                    clientSignatureStatus: { type: "STRING" },
+                                    caCertificationStatus: { type: "STRING" },
+                                    allPagesSignedStatus: { type: "STRING" },
+                                    turnoverAuditCheck: { type: "STRING" }
+                                },
+                                required: ["clientSignatureStatus", "caCertificationStatus", "allPagesSignedStatus", "turnoverAuditCheck"]
+                            }
+                        },
+                        required: ["inventory", "pan", "panHolderName", "assessmentYear", "detectedDocTypes", "filingChecks", "signatureChecks"]
+                    },
+                    summaryNotes: { type: "STRING" }
+                },
+                required: ["documentCategory", "documentTypeLabel", "gstins", "coveredMonths", "summaryNotes"]
+            };
+
+            const modelsToTry = ['gemini-3-flash-preview', 'gemini-3.1-flash-lite-preview', 'gemini-2.5-pro'];
+            let lastErr = null;
+
+            for (const modelName of modelsToTry) {
+                const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${encodeURIComponent(userGeminiApiKey)}`;
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{ role: 'user', parts: [...parts, { text: prompt }] }],
+                        generationConfig: {
+                            responseMimeType: "application/json",
+                            responseSchema: responseSchema,
+                            temperature: 0.1
+                        }
+                    })
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+                    if (!rawText) throw new Error('Empty response returned by OCR engine.');
+                    return JSON.parse(rawText);
+                }
+
+                const errText = await response.text();
+                lastErr = new Error(`API ${response.status}: ${errText}`);
+                if (response.status === 404) {
+                    continue;
+                }
+                throw lastErr;
+            }
+
+            throw lastErr;
+        }
+
+        async function handleFileUpload(e) {
+            const rawFiles = Array.from(e.target.files || []);
+            if (!rawFiles.length) return;
+
+            const forceType = document.getElementById('forceAssignment').value;
+            const filesToProcess = await expandUploadedFiles(rawFiles);
+
+            for (let rawFile of filesToProcess) {
+                uploadedFileStore[rawFile.name] = rawFile;
+                addLog(`Deep OCR scanning "${rawFile.name}" via Google Gemini backend...`, 'PROCESSING');
+
+                try {
+                    const aiResult = await analyzeDocumentWithGemini(rawFile, forceType, documents);
+
+                    let targetId = forceType !== 'auto' ? parseInt(forceType, 10) : (aiResult.documentCategory || 4);
+                    if (![1, 2, 3, 4].includes(targetId)) targetId = 4;
+
+                    const validMonthsSet = new Set();
+                    const allExtractedMonths = [
+                        ...(aiResult.coveredMonths || []),
+                        ...((aiResult.gstinPeriods || []).flatMap(gp => gp.months || [])),
+                        ...((aiResult.bankAccountPeriods || []).flatMap(bp => bp.months || []))
+                    ];
+
+                    allExtractedMonths.forEach(m => {
+                        const normalized = m.trim();
+                        if (normalized) validMonthsSet.add(normalized);
+                    });
+
+                    const extractedMonths = Array.from(validMonthsSet);
+                    const extractedGstins = (aiResult.gstins || [])
+                        .map(g => g.trim().toUpperCase())
+                        .filter(g => /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/.test(g));
+
+                    documents = documents.map(doc => {
+                        if (doc.id !== targetId) return doc;
+
+                        const updatedFiles = Array.from(new Set([...(doc.uploadedFiles || []), rawFile.name]));
+
+                        if (doc.id === 2) {
+                            const itrData = aiResult.itrAnalysis || {};
+                            const inv = itrData.inventory || {
+                                fileType: aiResult.documentTypeLabel || 'Tax Document',
+                                pageCount: 1,
+                                hasTextLayer: true,
+                                isLocked: false,
+                                isNonTaxDoc: false,
+                                notes: aiResult.summaryNotes || ''
+                            };
+                            const existingInventory = [...(doc.itrInventory || [])];
+                            const isDuplicate = existingInventory.some(item => item.fileName === rawFile.name);
+                            existingInventory.push({
+                                fileName: rawFile.name,
+                                fileType: inv.fileType,
+                                pageCount: inv.pageCount || 1,
+                                hasTextLayer: inv.hasTextLayer,
+                                isLocked: inv.isLocked,
+                                isNonTaxDoc: inv.isNonTaxDoc,
+                                isDuplicate: isDuplicate,
+                                notes: inv.notes
+                            });
+
+                            const entities = { ...(doc.itrEntities || {}) };
+                            const rawPan = (itrData.pan || '').trim().toUpperCase();
+                            const hasValidEntity = rawPan && rawPan !== 'N/A' && rawPan !== 'NONE' && !inv.isNonTaxDoc;
+
+                            if (hasValidEntity) {
+                                const entityKey = rawPan === 'UNSPECIFIED_PAN'
+                                    ? `ENTITY_${(itrData.businessName || itrData.panHolderName || rawFile.name).toUpperCase().replace(/[^A-Z0-9]/g, '_')}`
+                                    : rawPan;
+
+                                const prev = entities[entityKey] || {
+                                    pan: rawPan === 'UNSPECIFIED_PAN' ? 'PAN Not on Page' : rawPan,
+                                    panHolderName: itrData.panHolderName || 'Unknown Taxpayer',
+                                    businessName: itrData.businessName || '',
+                                    entityType: itrData.entityType || '',
+                                    filings: [],
+                                    availability: {},
+                                    filingChecks: [],
+                                    signatureChecks: []
+                                };
+
+                                const ay = (itrData.assessmentYear || 'AY 2025-26').trim().toUpperCase();
+                                const availability = { ...(prev.availability || {}) };
+                                const ayRow = { ...(availability[ay] || {}) };
+
+                                (itrData.detectedDocTypes || []).forEach(docKey => {
+                                    if (itrDocCols.some(c => c.key === docKey)) {
+                                        ayRow[docKey] = {
+                                            status: inv.isLocked ? 'Unreadable' : 'Available',
+                                            fileName: rawFile.name
+                                        };
+                                    }
+                                });
+
+                                if (itrData.taxAuditNotApplicable && (!ayRow.taxAudit || ayRow.taxAudit.status === 'Pending')) {
+                                    ayRow.taxAudit = { status: 'Not applicable', fileName: '' };
+                                }
+
+                                availability[ay] = ayRow;
+
+                                const filings = [...(prev.filings || [])];
+                                filings.push({
+                                    fileName: rawFile.name,
+                                    assessmentYear: ay,
+                                    financialYear: itrData.financialYear || '',
+                                    itrFormType: itrData.itrFormType || '',
+                                    filingSection: itrData.filingSection || '',
+                                    filingDate: itrData.filingDate || '',
+                                    acknowledgementNumber: itrData.acknowledgementNumber || '',
+                                    eVerificationStatus: itrData.eVerificationStatus || '',
+                                    eVerificationDate: itrData.eVerificationDate || '',
+                                    grossTotalIncome: itrData.grossTotalIncome || '',
+                                    deductions: itrData.deductions || '',
+                                    totalIncome: itrData.totalIncome || '',
+                                    taxPayable: itrData.taxPayable || '',
+                                    taxesPaid: itrData.taxesPaid || '',
+                                    refundOrBalanceDue: itrData.refundOrBalanceDue || ''
+                                });
+
+                                const filingChecks = [...(prev.filingChecks || [])];
+                                if (itrData.filingChecks) {
+                                    filingChecks.push({ fileName: rawFile.name, ay, ...itrData.filingChecks });
+                                }
+
+                                const signatureChecks = [...(prev.signatureChecks || [])];
+                                if (itrData.signatureChecks) {
+                                    signatureChecks.push({ fileName: rawFile.name, ay, ...itrData.signatureChecks });
+                                }
+
+                                entities[entityKey] = {
+                                    ...prev,
+                                    panHolderName: itrData.panHolderName && itrData.panHolderName !== 'Unknown' ? itrData.panHolderName : prev.panHolderName,
+                                    businessName: itrData.businessName || prev.businessName,
+                                    entityType: itrData.entityType || prev.entityType,
+                                    filings,
+                                    availability,
+                                    filingChecks,
+                                    signatureChecks
+                                };
+                            }
+
+                            return recalculateDocState({
+                                ...doc,
+                                uploadedFiles: updatedFiles,
+                                itrInventory: existingInventory,
+                                itrEntities: entities
+                            });
+                        } else if (doc.id === 3) {
+                            let breakdown = { ...(doc.gstinBreakdown || {}) };
+                            let gFiles = { ...(doc.gstinFiles || {}) };
+
+                            if (aiResult.gstinPeriods && aiResult.gstinPeriods.length > 0) {
+                                aiResult.gstinPeriods.forEach(gp => {
+                                    const g = (gp.gstin || '').trim().toUpperCase();
+                                    if (/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/.test(g)) {
+                                        breakdown[g] = Array.from(new Set([...(breakdown[g] || []), ...(gp.months || [])]));
+                                        gFiles[g] = Array.from(new Set([...(gFiles[g] || []), rawFile.name]));
+                                    }
+                                });
+                            }
+
+                            if (Object.keys(breakdown).length === 0 && extractedGstins.length > 0) {
+                                extractedGstins.forEach(g => {
+                                    breakdown[g] = Array.from(new Set([...(breakdown[g] || []), ...extractedMonths]));
+                                    gFiles[g] = Array.from(new Set([...(gFiles[g] || []), rawFile.name]));
+                                });
+                            }
+
+                            return recalculateDocState({
+                                ...doc,
+                                gstinBreakdown: breakdown,
+                                gstinFiles: gFiles,
+                                uploadedFiles: updatedFiles
+                            });
+                        } else if (doc.id === 4) {
+                            let bBreakdown = { ...(doc.bankBreakdown || {}) };
+                            let bMeta = { ...(doc.bankMeta || {}) };
+                            let bFiles = { ...(doc.bankFiles || {}) };
+                            const acctPeriods = aiResult.bankAccountPeriods || [];
+
+                            if (acctPeriods.length > 0) {
+                                acctPeriods.forEach(ap => {
+                                    const rawAcct = (ap.accountNumber || '').trim();
+                                    const normKey = normalizeAccountKey(rawAcct);
+                                    if (!normKey) return;
+                                    const cleanDisplayAcct = rawAcct.replace(/^0+(?=\d{6,})/, '') || rawAcct;
+                                    const bankLabel = (ap.bankName || '').trim();
+                                    if (!bMeta[normKey]) {
+                                        bMeta[normKey] = {
+                                            accountNumber: cleanDisplayAcct,
+                                            bankName: bankLabel
+                                        };
+                                    } else if (!bMeta[normKey].bankName && bankLabel) {
+                                        bMeta[normKey].bankName = bankLabel;
+                                    }
+                                    bBreakdown[normKey] = Array.from(new Set([...(bBreakdown[normKey] || []), ...(ap.months || []), ...extractedMonths]));
+                                    bFiles[normKey] = Array.from(new Set([...(bFiles[normKey] || []), rawFile.name]));
+                                });
+                            }
+
+                            const combined = Array.from(new Set([...doc.months, ...extractedMonths]));
+                            return recalculateDocState({
+                                ...doc,
+                                months: combined,
+                                bankBreakdown: bBreakdown,
+                                bankMeta: bMeta,
+                                bankFiles: bFiles,
+                                uploadedFiles: updatedFiles
+                            });
+                        } else {
+                            const combined = Array.from(new Set([...doc.months, ...(extractedMonths.length ? extractedMonths : ['Verified via OCR'])]));
+                            return recalculateDocState({
+                                ...doc,
+                                months: combined,
+                                uploadedFiles: updatedFiles
+                            });
+                        }
+                    });
+
+                    expandedDocId = targetId;
+                    const gstLog = extractedGstins.length ? ` | GSTINs: ${extractedGstins.join(', ')}` : '';
+                    const itrPanLog = (targetId === 2 && aiResult.itrAnalysis?.pan) ? ` | PAN: ${aiResult.itrAnalysis.pan} (${aiResult.itrAnalysis.assessmentYear || ''})` : '';
+                    const acctLog = (targetId === 4 && aiResult.bankAccountPeriods?.length) ? ` | A/c: ${Array.from(new Set(aiResult.bankAccountPeriods.map(a => normalizeAccountKey(a.accountNumber)).filter(Boolean))).join(', ')}` : '';
+                    const periodLog = extractedMonths.length ? ` | Periods (${extractedMonths.length}): ${extractedMonths.join(', ')}` : '';
+                    addLog(`OCR Verified "${rawFile.name}" → Doc #${targetId} (${aiResult.documentTypeLabel})${gstLog}${itrPanLog}${acctLog}${periodLog}`, 'VERIFIED');
+                    renderDocuments();
+
+                } catch (err) {
+                    console.error(err);
+                    addLog(`OCR extraction failed for "${rawFile.name}": ${err.message}`, 'ERROR');
+                    if (String(err.message).includes('403')) {
+                        openApiKeyModal();
+                    }
+                }
+            }
+
+            e.target.value = '';
+        }
+
+        async function downloadGstinZip(gstin) {
+            const gstrDoc = documents.find(d => d.id === 3);
+            const fileNames = (gstrDoc && gstrDoc.gstinFiles && gstrDoc.gstinFiles[gstin]) || [];
+            if (fileNames.length === 0) {
+                addLog(`No uploaded GSTR-3B files found to zip for GSTIN ${gstin}.`, 'ERROR');
+                return;
+            }
+
+            try {
+                addLog(`Creating ZIP archive for GSTIN ${gstin} (${fileNames.length} file(s))...`, 'PROCESSING');
+                const zip = new JSZip();
+                let addedCount = 0;
+
+                for (const fname of fileNames) {
+                    const fileObj = uploadedFileStore[fname];
+                    if (fileObj) {
+                        zip.file(fname, fileObj);
+                        addedCount++;
+                    }
+                }
+
+                if (addedCount === 0) {
+                    addLog(`File blobs unavailable in memory for ${gstin}.`, 'ERROR');
+                    return;
+                }
+
+                const blob = await zip.generateAsync({ type: 'blob' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `GSTR3B_${gstin}.zip`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+
+                addLog(`Downloaded GSTR3B_${gstin}.zip (${addedCount} file(s)).`, 'VERIFIED');
+            } catch (err) {
+                addLog(`Failed to create ZIP for ${gstin}: ${err.message}`, 'ERROR');
+            }
+        }
+
+        function copyChecklist() {
+            const lines = [
+                `CREDIT ASSESSMENT DOCUMENT PENDENCY REPORT`,
+                `Profile: ${activeProfile}`,
+                `Generated: ${new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}`,
+                `--------------------------------------------------`
+            ];
+
+            documents.forEach(doc => {
+                lines.push(`${doc.id}. ${doc.name} [${doc.status}]`);
+                lines.push(`   Notes: ${doc.remarks}`);
+                if (doc.id === 2 && doc.itrEntities && Object.keys(doc.itrEntities).length > 0) {
+                    Object.keys(doc.itrEntities).forEach(panKey => {
+                        const ent = doc.itrEntities[panKey];
+                        lines.push(`   - Entity: ${ent.panHolderName} (${ent.pan})${ent.businessName ? ` | Trade: ${ent.businessName}` : ''}`);
+                        (doc.gridMonths || []).forEach(ay => {
+                            const cleared = isAyCleared(ent, ay);
+                            const pendingCols = getAyPendingLabels(ent, ay);
+                            lines.push(`     * ${ay}: ${cleared ? 'CLEARED' : `PENDING (${pendingCols.join(', ')})`}`);
+                        });
+                    });
+                }
+                if (doc.id === 3 && doc.gstinBreakdown && Object.keys(doc.gstinBreakdown).length > 0) {
+                    Object.entries(doc.gstinBreakdown).forEach(([gstin, months]) => {
+                        const missing = doc.gridMonths.filter(m => !months.includes(m));
+                        lines.push(`   - GSTIN ${gstin}: Collected ${months.length}/${doc.gridMonths.length} | Missing: ${missing.length ? missing.join(', ') : 'None'}`);
+                    });
+                }
+                if (doc.id === 4 && doc.bankBreakdown && Object.keys(doc.bankBreakdown).length > 0) {
+                    Object.entries(doc.bankBreakdown).forEach(([acctKey, months]) => {
+                        const meta = (doc.bankMeta && doc.bankMeta[acctKey]) || { accountNumber: acctKey, bankName: '' };
+                        const missing = doc.gridMonths.filter(m => !months.includes(m));
+                        lines.push(`   - A/c ${meta.accountNumber}${meta.bankName ? ` (${meta.bankName})` : ''}: Collected ${months.length}/${doc.gridMonths.length} | Missing: ${missing.length ? missing.join(', ') : 'None'}`);
+                    });
+                }
+            });
+
+            const textToCopy = lines.join('\n');
+            const textArea = document.createElement('textarea');
+            textArea.value = textToCopy;
+            textArea.style.position = 'fixed';
+            textArea.style.opacity = '0';
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+
+            try {
+                document.execCommand('copy');
+                const btn = document.getElementById('copyBtn');
+                const btnText = document.getElementById('copyBtnText');
+                btn.classList.remove('bg-slate-900', 'hover:bg-slate-800');
+                btn.classList.add('bg-emerald-600');
+                btnText.innerText = 'Copied to Clipboard!';
+                addLog('Pendency summary report copied to clipboard.', 'INFO');
+                setTimeout(() => {
+                    btn.classList.add('bg-slate-900', 'hover:bg-slate-800');
+                    btn.classList.remove('bg-emerald-600');
+                    btnText.innerText = 'Copy Pendency Report';
+                }, 2000);
+            } catch (err) {
+                addLog('Failed to copy report to clipboard.', 'ERROR');
+            }
+
+            document.body.removeChild(textArea);
+        }
+
+        function renderDocuments() {
+            const container = document.getElementById('documentsContainer');
+            if (!container) return;
+            container.innerHTML = '';
+
+            let verifiedCount = documents.filter(d => d.status === 'VERIFIED').length;
+            let partialCount = documents.filter(d => d.status === 'PARTIAL').length;
+            let pendingCount = documents.filter(d => d.status === 'PENDING').length;
+
+            document.getElementById('checklistSummary').innerText =
+                `Active Profile: ${activeProfile} — ${verifiedCount} Verified, ${partialCount} Partial, ${pendingCount} Pending`;
+
+            documents.forEach(doc => {
+                let isExpanded = expandedDocId === doc.id;
+                let badgeStyle =
+                    doc.status === 'VERIFIED' ? 'bg-emerald-100 text-emerald-700 border border-emerald-200' :
+                    doc.status === 'PARTIAL' ? 'bg-blue-100 text-blue-700 border border-blue-200' :
+                    'bg-amber-100 text-amber-700 border border-amber-200';
+
+                let card = document.createElement('div');
+                card.className = 'border border-slate-200 rounded-xl overflow-hidden transition-all bg-white shadow-2xs';
+
+                let header = `
+                    <div onclick="${doc.gridMonths ? `toggleExpand(${doc.id})` : `toggleSimpleDoc(${doc.id})`}" class="p-4 flex items-center justify-between hover:bg-slate-50/90 cursor-pointer select-none">
+                        <div class="flex items-start space-x-3 pr-3">
+                            <span class="text-xs font-bold text-slate-500 bg-slate-100 w-6 h-6 rounded-lg flex items-center justify-center shrink-0 mt-0.5">${doc.id}</span>
+                            <div>
+                                <h3 class="text-sm font-semibold text-slate-800">${doc.name}</h3>
+                                <p class="text-xs text-slate-500 mt-0.5 leading-relaxed">${escapeHtml(doc.remarks)}</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center space-x-2.5 shrink-0">
+                            <span class="text-[11px] font-bold px-2.5 py-1 rounded-full ${badgeStyle}">
+                                ${doc.status}
+                            </span>
+                            ${doc.gridMonths ? `
+                                <button type="button" onclick="event.stopPropagation(); toggleExpand(${doc.id})" class="p-1.5 hover:bg-slate-200 rounded-lg text-slate-500 transition-colors">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="${isExpanded ? 'M5 15l7-7 7 7' : 'M19 9l-7 7-7-7'}"></path></svg>
+                                </button>
+                            ` : `
+                                <span class="text-[11px] font-medium text-slate-400 px-1.5">${doc.status === 'VERIFIED' ? 'Undo' : 'Mark'}</span>
+                            `}
+                        </div>
+                    </div>
+                `;
+
+                let drawer = '';
+                if (isExpanded && doc.gridMonths) {
+                    let gridContent = '';
+                    let extraHeaderActions = '';
+
+                    if (doc.id === 2) {
+                        const targetAys = doc.gridMonths || ['AY 2024-25', 'AY 2025-26', 'AY 2026-27'];
+                        const inventory = doc.itrInventory || [];
+                        const entities = doc.itrEntities || {};
+                        const panKeys = Object.keys(entities);
+
+                        gridContent += `
+                            <div class="bg-white p-3.5 rounded-xl border border-slate-200 shadow-2xs mb-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div>
+                                    <label class="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-1">Pending Assessment Years</label>
+                                    <input type="text" value="${escapeHtml(targetAys.join(', '))}" onchange="updateItrPendingAys(this.value)" class="w-full text-xs font-mono bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                                </div>
+                                <div>
+                                    <label class="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-1">Known File Passwords (Optional)</label>
+                                    <input type="text" value="${escapeHtml(itrPasswords.join(', '))}" onchange="updateItrPasswords(this.value)" placeholder="Comma-separated (never guessed)" class="w-full text-xs font-mono bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                                </div>
+                            </div>
+                        `;
+
+                        if (inventory.length > 0) {
+                            gridContent += `
+                                <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs mb-3">
+                                    <div class="flex items-center justify-between mb-2.5">
+                                        <span class="text-xs font-bold text-slate-800 uppercase tracking-wider">Step 1 — File Inventory (${inventory.length} file(s))</span>
+                                    </div>
+                                    <div class="overflow-x-auto">
+                                        <table class="w-full text-left border-collapse text-[11px]">
+                                            <thead>
+                                                <tr class="border-b border-slate-200 text-slate-500 bg-slate-50">
+                                                    <th class="py-2 px-2.5 font-semibold">File Name</th>
+                                                    <th class="py-2 px-2.5 font-semibold">Type</th>
+                                                    <th class="py-2 px-2.5 font-semibold">Pages</th>
+                                                    <th class="py-2 px-2.5 font-semibold">Text Layer</th>
+                                                    <th class="py-2 px-2.5 font-semibold">Flags</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody class="divide-y divide-slate-100">
+                                                ${inventory.map(inv => {
+                                                    const flags = [];
+                                                    if (inv.isDuplicate) flags.push('<span class="bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded font-semibold">Duplicate</span>');
+                                                    if (inv.isLocked) flags.push('<span class="bg-rose-100 text-rose-800 px-1.5 py-0.5 rounded font-semibold">Locked</span>');
+                                                    if (!inv.hasTextLayer) flags.push('<span class="bg-indigo-100 text-indigo-800 px-1.5 py-0.5 rounded font-semibold">Scanned OCR</span>');
+                                                    if (inv.isNonTaxDoc) flags.push('<span class="bg-slate-200 text-slate-700 px-1.5 py-0.5 rounded font-semibold">Non-Tax Doc</span>');
+                                                    return `
+                                                        <tr>
+                                                            <td class="py-2 px-2.5 font-medium text-slate-800 max-w-[200px] truncate" title="${escapeHtml(inv.fileName)}">${escapeHtml(inv.fileName)}</td>
+                                                            <td class="py-2 px-2.5 text-slate-600">${escapeHtml(inv.fileType)}</td>
+                                                            <td class="py-2 px-2.5 text-slate-600">${inv.pageCount}</td>
+                                                            <td class="py-2 px-2.5 font-semibold ${inv.hasTextLayer ? 'text-emerald-700' : 'text-amber-700'}">${inv.hasTextLayer ? 'Yes (Native)' : 'No (Scanned)'}</td>
+                                                            <td class="py-2 px-2.5 space-x-1">${flags.length ? flags.join(' ') : '<span class="text-slate-400">Clean</span>'}</td>
+                                                        </tr>
+                                                    `;
+                                                }).join('')}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            `;
+                        }
+
+                        if (panKeys.length === 0) {
+                            gridContent += `
+                                <div class="bg-white p-6 rounded-xl border border-dashed border-slate-300 text-center space-y-2">
+                                    <p class="text-xs font-semibold text-slate-600">No ITRs or Financial Statements ingested yet</p>
+                                    <p class="text-[11px] text-slate-400">Upload ITR-V, ITR Forms (PDF/JSON), Computations, P&L, Balance Sheets, Schedules, Tax Audit Reports (3CA/3CB-3CD), 26AS/AIS, or ZIP archives to run Steps 1–5 automatically.</p>
+                                </div>
+                            `;
+                        } else {
+                            panKeys.forEach((panKey, idx) => {
+                                const ent = entities[panKey];
+                                const clearedCount = targetAys.filter(ay => isAyCleared(ent, ay)).length;
+                                gridContent += `
+                                    <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs mb-3 space-y-4">
+                                        <!-- Entity Header -->
+                                        <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-2.5">
+                                            <div>
+                                                <div class="flex flex-wrap items-center gap-2">
+                                                    <span class="bg-indigo-100 text-indigo-800 font-mono font-bold text-xs px-2.5 py-1 rounded-md">Entity #${idx + 1}: ${escapeHtml(ent.pan)}</span>
+                                                    <span class="text-xs font-bold text-slate-900">${escapeHtml(ent.panHolderName)}</span>
+                                                    ${ent.entityType ? `<span class="text-[10px] font-semibold bg-slate-100 text-slate-600 px-2 py-0.5 rounded">${escapeHtml(ent.entityType)}</span>` : ''}
+                                                </div>
+                                                ${ent.businessName ? `<p class="text-[11px] text-slate-500 mt-1">Business / Trade Name (Financials): <span class="font-semibold text-slate-700">${escapeHtml(ent.businessName)}</span></p>` : ''}
+                                            </div>
+                                            <span class="text-xs font-bold px-2.5 py-1 rounded-full ${clearedCount === targetAys.length ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}">
+                                                ${clearedCount}/${targetAys.length} AYs Cleared
+                                            </span>
+                                        </div>
+
+                                        <!-- Step 3: Availability Grid -->
+                                        <div>
+                                            <div class="flex items-center justify-between mb-2">
+                                                <span class="text-[11px] font-bold uppercase tracking-wider text-slate-600">Step 3 — Document Availability Grid (Click cell to toggle status)</span>
+                                            </div>
+                                            <div class="overflow-x-auto border border-slate-200 rounded-lg">
+                                                <table class="w-full text-left border-collapse text-[11px]">
+                                                    <thead>
+                                                        <tr class="bg-slate-50 border-b border-slate-200 text-slate-600">
+                                                            <th class="py-2 px-2.5 font-bold sticky left-0 bg-slate-50">AY</th>
+                                                            ${itrDocCols.map(c => `<th class="py-2 px-2 font-semibold whitespace-nowrap">${c.label}</th>`).join('')}
+                                                            <th class="py-2 px-2.5 font-bold">AY Status</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody class="divide-y divide-slate-100">
+                                                        ${targetAys.map(ay => {
+                                                            const ayRow = (ent.availability && ent.availability[ay]) || {};
+                                                            const cleared = isAyCleared(ent, ay);
+                                                            const missingList = getAyPendingLabels(ent, ay);
+                                                            return `
+                                                                <tr>
+                                                                    <td class="py-2 px-2.5 font-bold text-slate-800 whitespace-nowrap sticky left-0 bg-white">${escapeHtml(ay)}</td>
+                                                                    ${itrDocCols.map(col => {
+                                                                        const cell = ayRow[col.key] || { status: 'Pending', fileName: '' };
+                                                                        const pillClass =
+                                                                            cell.status === 'Available' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                                                                            cell.status === 'Not applicable' ? 'bg-slate-100 text-slate-500 border-slate-200' :
+                                                                            cell.status === 'Unreadable' ? 'bg-rose-100 text-rose-700 border-rose-300' :
+                                                                            'bg-amber-50 text-amber-700 border-amber-200';
+                                                                        return `
+                                                                            <td class="py-1.5 px-1.5 align-top">
+                                                                                <button type="button" onclick="cycleItrCellStatus('${escapeHtml(panKey)}', '${escapeHtml(ay)}', '${col.key}')" class="w-full text-left p-1.5 rounded border ${pillClass} hover:opacity-80 transition-opacity">
+                                                                                    <div class="font-bold text-[10px]">${escapeHtml(cell.status)}</div>
+                                                                                    ${cell.fileName ? `<div class="text-[9px] truncate max-w-[90px] opacity-80" title="${escapeHtml(cell.fileName)}">${escapeHtml(cell.fileName)}</div>` : ''}
+                                                                                </button>
+                                                                            </td>
+                                                                        `;
+                                                                    }).join('')}
+                                                                    <td class="py-2 px-2.5 align-top">
+                                                                        ${cleared
+                                                                            ? `<span class="inline-block bg-emerald-100 text-emerald-800 font-bold text-[10px] px-2 py-0.5 rounded">CLEARED</span>`
+                                                                            : `<div><span class="inline-block bg-rose-100 text-rose-700 font-bold text-[10px] px-2 py-0.5 rounded mb-1">PENDING</span><p class="text-[10px] text-slate-500 leading-tight max-w-[160px]">Missing: ${escapeHtml(missingList.join(', '))}</p></div>`
+                                                                        }
+                                                                    </td>
+                                                                </tr>
+                                                            `;
+                                                        }).join('')}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+
+                                        <!-- Step 2: Extracted Return & Financial Figures -->
+                                        ${ent.filings && ent.filings.length > 0 ? `
+                                            <div>
+                                                <span class="text-[11px] font-bold uppercase tracking-wider text-slate-600 block mb-2">Step 2 — Extracted ITR & Income Summary</span>
+                                                <div class="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+                                                    ${ent.filings.map(f => `
+                                                        <div class="p-3 rounded-lg bg-slate-50 border border-slate-200 text-[11px] space-y-1">
+                                                            <div class="flex items-center justify-between border-b border-slate-200 pb-1">
+                                                                <span class="font-bold text-slate-800">${escapeHtml(f.assessmentYear)} ${f.financialYear ? `(${escapeHtml(f.financialYear)})` : ''}</span>
+                                                                <span class="font-mono font-semibold text-blue-700">${escapeHtml(f.itrFormType || 'Financials')} ${f.filingSection ? `• Sec ${escapeHtml(f.filingSection)}` : ''}</span>
+                                                            </div>
+                                                            <div class="grid grid-cols-2 gap-x-2 gap-y-0.5 text-slate-600 pt-1">
+                                                                <div><span class="text-slate-400">Ack No:</span> <span class="font-mono text-slate-800">${escapeHtml(f.acknowledgementNumber || '—')}</span></div>
+                                                                <div><span class="text-slate-400">Filed:</span> <span class="text-slate-800">${escapeHtml(f.filingDate || '—')}</span></div>
+                                                                <div><span class="text-slate-400">E-Verify:</span> <span class="font-semibold text-slate-800">${escapeHtml(f.eVerificationStatus || '—')} ${f.eVerificationDate ? `(${escapeHtml(f.eVerificationDate)})` : ''}</span></div>
+                                                                <div><span class="text-slate-400">GTI:</span> <span class="font-semibold text-slate-800">${escapeHtml(f.grossTotalIncome || '—')}</span></div>
+                                                                <div><span class="text-slate-400">Deductions:</span> <span class="text-slate-800">${escapeHtml(f.deductions || '—')}</span></div>
+                                                                <div><span class="text-slate-400">Total Income:</span> <span class="font-bold text-slate-900">${escapeHtml(f.totalIncome || '—')}</span></div>
+                                                                <div><span class="text-slate-400">Tax Payable:</span> <span class="text-slate-800">${escapeHtml(f.taxPayable || '—')}</span></div>
+                                                                <div><span class="text-slate-400">Taxes Paid:</span> <span class="text-slate-800">${escapeHtml(f.taxesPaid || '—')}</span></div>
+                                                                <div class="col-span-2"><span class="text-slate-400">Refund / Due:</span> <span class="font-semibold text-slate-800">${escapeHtml(f.refundOrBalanceDue || '—')}</span></div>
+                                                            </div>
+                                                        </div>
+                                                    `).join('')}
+                                                </div>
+                                            </div>
+                                        ` : ''}
+
+                                        <!-- Steps 4 & 5: Filing Status & Signature/CA Certification Audits -->
+                                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                            ${ent.filingChecks && ent.filingChecks.length > 0 ? `
+                                                <div class="p-3 rounded-lg bg-blue-50/50 border border-blue-200/80 text-[11px] space-y-1.5">
+                                                    <span class="text-[10px] font-bold uppercase tracking-wider text-blue-800 block">Step 4 — Filing Status & Consistency Checks</span>
+                                                    ${ent.filingChecks.map(fc => `
+                                                        <div class="border-t border-blue-100 pt-1.5 first:border-t-0 first:pt-0 space-y-0.5 text-slate-700">
+                                                            <div class="font-bold text-slate-800">${escapeHtml(fc.ay)} (${escapeHtml(fc.fileName)})</div>
+                                                            <div>• <strong>Due Date:</strong> ${escapeHtml(fc.dueDateStatus)}</div>
+                                                            <div>• <strong>30-Day E-Verify:</strong> ${escapeHtml(fc.eVerificationValid)}</div>
+                                                            <div>• <strong>AY vs Books Year:</strong> ${escapeHtml(fc.ayFinancialsMatch)}</div>
+                                                            <div>• <strong>ITR Form vs Books:</strong> ${escapeHtml(fc.formConsistencyCheck)}</div>
+                                                        </div>
+                                                    `).join('')}
+                                                </div>
+                                            ` : ''}
+                                            ${ent.signatureChecks && ent.signatureChecks.length > 0 ? `
+                                                <div class="p-3 rounded-lg bg-emerald-50/50 border border-emerald-200/80 text-[11px] space-y-1.5">
+                                                    <span class="text-[10px] font-bold uppercase tracking-wider text-emerald-800 block">Step 5 — Signature, CA & Audit Threshold Checks</span>
+                                                    ${ent.signatureChecks.map(sc => `
+                                                        <div class="border-t border-emerald-100 pt-1.5 first:border-t-0 first:pt-0 space-y-0.5 text-slate-700">
+                                                            <div class="font-bold text-slate-800">${escapeHtml(sc.ay)} (${escapeHtml(sc.fileName)})</div>
+                                                            <div>• <strong>Entity Signatory:</strong> ${escapeHtml(sc.clientSignatureStatus)}</div>
+                                                            <div>• <strong>CA Stamp / FRN / UDIN:</strong> ${escapeHtml(sc.caCertificationStatus)}</div>
+                                                            <div>• <strong>All Pages & Schedules:</strong> ${escapeHtml(sc.allPagesSignedStatus)}</div>
+                                                            <div>• <strong>Sec 44AB Turnover Check:</strong> ${escapeHtml(sc.turnoverAuditCheck)}</div>
+                                                        </div>
+                                                    `).join('')}
+                                                </div>
+                                            ` : ''}
+                                        </div>
+                                    </div>
+                                `;
+                            });
+                        }
+                    } else if (doc.id === 3) {
+                        extraHeaderActions = `
+                            <button type="button" onclick="openAddGstinModal()" class="text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg transition-colors shadow-2xs">
+                                + Add GSTIN
+                            </button>
+                        `;
+                        let bKeys = Object.keys(doc.gstinBreakdown || {});
+                        if (bKeys.length === 0) {
+                            gridContent += `
+                                <div class="bg-white p-6 rounded-xl border border-dashed border-slate-300 text-center space-y-2">
+                                    <p class="text-xs font-semibold text-slate-600">No GSTR-3B returns uploaded yet</p>
+                                    <p class="text-[11px] text-slate-400">Upload GSTR-3B PDFs on the left panel to automatically extract GSTIN numbers, separate entity tables, and enable per-GSTIN ZIP downloads.</p>
+                                </div>
+                            `;
+                        } else {
+                            bKeys.forEach((gstin, gIdx) => {
+                                let collectedList = doc.gstinBreakdown[gstin] || [];
+                                let gstFileCount = ((doc.gstinFiles && doc.gstinFiles[gstin]) || []).length;
+                                gridContent += `
+                                    <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs mb-3">
+                                        <div class="flex flex-wrap items-center justify-between gap-2 mb-3 border-b border-slate-100 pb-2.5">
+                                            <div class="flex flex-wrap items-center gap-2">
+                                                <span class="bg-blue-100 text-blue-700 font-mono font-bold text-xs px-2.5 py-1 rounded-md">GSTIN #${gIdx + 1}: ${gstin}</span>
+                                                <button type="button" onclick="downloadGstinZip('${gstin}')" title="Download all GSTR-3B files for ${gstin} as ZIP" class="inline-flex items-center space-x-1.5 text-xs font-semibold bg-slate-800 hover:bg-slate-900 text-white px-2.5 py-1 rounded-md transition-colors shadow-2xs">
+                                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                                                    <span>Download ZIP (${gstFileCount})</span>
+                                                </button>
+                                            </div>
+                                            <span class="text-xs text-slate-500 font-medium">${collectedList.length}/${doc.gridMonths.length} periods verified</span>
+                                        </div>
+                                        <div class="grid grid-cols-3 sm:grid-cols-6 gap-2">
+                                            ${doc.gridMonths.map(m => {
+                                                let collected = collectedList.includes(m);
+                                                return `
+                                                    <button type="button" onclick="toggleGstinMonth(${doc.id}, '${gstin}', '${m}')" class="p-2 rounded-xl border text-center transition-all flex flex-col items-center justify-center ${collected ? 'bg-emerald-50 border-emerald-300 text-emerald-800' : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'}">
+                                                        <span class="text-xs font-bold">${m}</span>
+                                                        <span class="text-[9px] mt-1 font-bold px-1.5 py-0.5 rounded ${collected ? 'bg-emerald-200/80 text-emerald-900' : 'bg-rose-100 text-rose-700'}">${collected ? 'COLLECTED' : 'MISSING'}</span>
+                                                    </button>
+                                                `;
+                                            }).join('')}
+                                        </div>
+                                    </div>
+                                `;
+                            });
+                        }
+                    } else if (doc.id === 4) {
+                        const acctKeys = Object.keys(doc.bankBreakdown || {});
+                        if (acctKeys.length === 0) {
+                            gridContent = `
+                                <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs">
+                                    <div class="flex items-center justify-between mb-3 border-b border-slate-100 pb-2">
+                                        <span class="text-xs text-slate-400 italic">Upload bank statement(s) to extract account number(s) & covered months</span>
+                                        <span class="text-xs text-slate-500 font-medium">${doc.months.length}/${doc.gridMonths.length} periods verified</span>
+                                    </div>
+                                    <div class="grid grid-cols-3 sm:grid-cols-6 gap-2">
+                                        ${doc.gridMonths.map(m => {
+                                            let collected = doc.months.includes(m);
+                                            return `
+                                                <button type="button" onclick="toggleMonthDirect(${doc.id}, '${m}')" class="p-2 rounded-xl border text-center transition-all flex flex-col items-center justify-center ${collected ? 'bg-emerald-50 border-emerald-300 text-emerald-800' : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'}">
+                                                    <span class="text-xs font-bold">${m}</span>
+                                                    <span class="text-[9px] mt-1 font-bold px-1.5 py-0.5 rounded ${collected ? 'bg-emerald-200/80 text-emerald-900' : 'bg-rose-100 text-rose-700'}">${collected ? 'COLLECTED' : 'MISSING'}</span>
+                                                </button>
+                                            `;
+                                        }).join('')}
+                                    </div>
+                                </div>
+                            `;
+                        } else {
+                            acctKeys.forEach((acctKey, aIdx) => {
+                                const meta = (doc.bankMeta && doc.bankMeta[acctKey]) || { accountNumber: acctKey, bankName: '' };
+                                const collectedList = doc.bankBreakdown[acctKey] || [];
+                                const labelText = meta.bankName
+                                    ? `${escapeHtml(meta.bankName)} • A/c ${escapeHtml(meta.accountNumber)}`
+                                    : `A/c ${escapeHtml(meta.accountNumber)}`;
+                                gridContent += `
+                                    <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs mb-3">
+                                        <div class="flex flex-wrap items-center justify-between gap-2 mb-3 border-b border-slate-100 pb-2.5">
+                                            <span class="bg-indigo-100 text-indigo-800 font-mono font-bold text-xs px-2.5 py-1 rounded-md">Account #${aIdx + 1}: ${labelText}</span>
+                                            <span class="text-xs text-slate-500 font-medium">${collectedList.length}/${doc.gridMonths.length} periods verified</span>
+                                        </div>
+                                        <div class="grid grid-cols-3 sm:grid-cols-6 gap-2">
+                                            ${doc.gridMonths.map(m => {
+                                                let collected = collectedList.includes(m);
+                                                return `
+                                                    <button type="button" onclick="toggleBankAccountMonth(${doc.id}, '${acctKey}', '${m}')" class="p-2 rounded-xl border text-center transition-all flex flex-col items-center justify-center ${collected ? 'bg-emerald-50 border-emerald-300 text-emerald-800' : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'}">
+                                                        <span class="text-xs font-bold">${m}</span>
+                                                        <span class="text-[9px] mt-1 font-bold px-1.5 py-0.5 rounded ${collected ? 'bg-emerald-200/80 text-emerald-900' : 'bg-rose-100 text-rose-700'}">${collected ? 'COLLECTED' : 'MISSING'}</span>
+                                                    </button>
+                                                `;
+                                            }).join('')}
+                                        </div>
+                                    </div>
+                                `;
+                            });
+                        }
+                    } else {
+                        gridContent = `
+                            <div class="grid grid-cols-3 sm:grid-cols-6 gap-2">
+                                ${doc.gridMonths.map(m => {
+                                    let collected = doc.months.includes(m);
+                                    return `
+                                        <button type="button" onclick="toggleMonthDirect(${doc.id}, '${m}')" class="p-2 rounded-xl border text-center transition-all flex flex-col items-center justify-center ${collected ? 'bg-emerald-50 border-emerald-300 text-emerald-800' : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'}">
+                                            <span class="text-xs font-bold">${m}</span>
+                                            <span class="text-[9px] mt-1 font-bold px-1.5 py-0.5 rounded ${collected ? 'bg-emerald-200/80 text-emerald-900' : 'bg-rose-100 text-rose-700'}">${collected ? 'COLLECTED' : 'MISSING'}</span>
+                                        </button>
+                                    `;
+                                }).join('')}
+                            </div>
+                        `;
+                    }
+
+                    const filesListHtml = (doc.uploadedFiles && doc.uploadedFiles.length > 0)
+                        ? `<div class="pt-3 border-t border-slate-200/80 flex flex-wrap items-center gap-1.5">
+                             <span class="text-[11px] font-semibold text-slate-500 mr-1">Ingested Files:</span>
+                             ${doc.uploadedFiles.map(fn => `<span class="text-[11px] bg-white border border-slate-200 text-slate-700 px-2 py-0.5 rounded-md font-mono">${escapeHtml(fn)}</span>`).join('')}
+                           </div>`
+                        : '';
+
+                    drawer = `
+                        <div class="bg-slate-50 border-t border-slate-200 p-5 space-y-4">
+                            <div class="flex flex-wrap items-center justify-between gap-2">
+                                <span class="text-xs font-bold uppercase tracking-wider text-slate-600">${doc.id === 2 ? `ITR & Financials Forensic Audit (${doc.gridMonths.length} Target AYs)` : `Month-Wise Verification Table (${doc.gridMonths.length} Periods)`}</span>
+                                <div class="flex items-center space-x-2">
+                                    ${extraHeaderActions}
+                                    <button type="button" onclick="markAll(${doc.id})" class="text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg transition-colors shadow-2xs">Mark All Collected</button>
+                                </div>
+                            </div>
+                            ${gridContent}
+                            ${filesListHtml}
+                        </div>
+                    `;
+                }
+
+                card.innerHTML = header + drawer;
+                container.appendChild(card);
+            });
+        }
+
+        // Enable drag-and-drop on upload zone
+        window.onload = function () {
+            updateApiKeyButtonUI();
+            renderDocuments();
+
+            const dropZone = document.getElementById('dropZone');
+            const fileInput = document.getElementById('fileInput');
+            if (!dropZone || !fileInput) return;
+
+            ['dragenter', 'dragover'].forEach(evtName => {
+                dropZone.addEventListener(evtName, (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    dropZone.classList.add('border-blue-500', 'bg-blue-50/50');
+                });
+            });
+
+            ['dragleave', 'drop'].forEach(evtName => {
+                dropZone.addEventListener(evtName, (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    dropZone.classList.remove('border-blue-500', 'bg-blue-50/50');
+                });
+            });
+
+            dropZone.addEventListener('drop', (e) => {
+                const dt = e.dataTransfer;
+                if (dt && dt.files && dt.files.length > 0) {
+                    handleFileUpload({ target: { files: dt.files, value: '' } });
+                }
+            });
+        };
+    </script>
+</body>
+</html>
