@@ -75,9 +75,8 @@
                         <option value="auto">Auto-Detect via AI Engine (Recommended)</option>
                         <option value="1">1. GST Certificate & MSME (UDAYAM)</option>
                         <option value="2">2. ITR, Financials & Tax Audit (AY 2024-25 to 2026-27)</option>
-                        <option value="3">3. Provisional Last year till March</option>
-                        <option value="4">4. GSTR 3B (Last 24 months)</option>
-                        <option value="5">5. Bank statements (Last 12 months)</option>
+                        <option value="3">3. GSTR 3B (Last 24 months)</option>
+                        <option value="4">4. Bank statements (Last 12 months)</option>
                     </select>
                 </div>
             </div>
@@ -109,7 +108,7 @@
                 <div class="flex flex-wrap items-center justify-between gap-3 mb-5 pb-4 border-b border-slate-100">
                     <div>
                         <h2 class="text-lg font-bold text-slate-900">Verified Document Checklist</h2>
-                        <p id="checklistSummary" class="text-xs text-slate-500 mt-0.5">Active Profile: New Client Analysis — 0 Verified, 5 Pending</p>
+                        <p id="checklistSummary" class="text-xs text-slate-500 mt-0.5">Active Profile: New Client Analysis — 0 Verified, 4 Pending</p>
                     </div>
                     <button id="copyBtn" onclick="copyChecklist()" class="flex items-center space-x-1.5 text-xs font-semibold bg-slate-900 hover:bg-slate-800 text-white px-3.5 py-2 rounded-xl transition-all shadow-sm">
                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path></svg>
@@ -145,23 +144,21 @@
                 return [
                     { id: 1, name: 'GST Certificate & MSME (UDAYAM)', status: 'VERIFIED', remarks: 'On File (Verified in previous cycle)', months: ['On File'], uploadedFiles: ['GST_Cert_Existing.pdf'] },
                     { id: 2, name: 'ITR, Financials & Tax Audit (AY 2024-25 to 2026-27)', status: 'PENDING', remarks: 'Pending: AY 2024-25, AY 2025-26, AY 2026-27', months: [], uploadedFiles: [], itrEntities: {}, itrInventory: [], gridMonths: ['AY 2024-25', 'AY 2025-26', 'AY 2026-27'] },
-                    { id: 3, name: 'Provisional Last year till March', status: 'PENDING', remarks: 'Missing: Apr 2025 to Mar 2026', months: [], uploadedFiles: [], gridMonths: generateGrid(3, 2025, 12) },
-                    { id: 4, name: 'GSTR 3B (Last 12 months)', status: 'PENDING', remarks: 'Missing: Nov 2025 to Oct 2026', months: [], uploadedFiles: [], gstinBreakdown: {}, gstinFiles: {}, gridMonths: generateGrid(10, 2025, 12) },
-                    { id: 5, name: 'Bank statements (Last 6 months)', status: 'PENDING', remarks: 'Missing: May 2026 to Oct 2026', months: [], uploadedFiles: [], bankBreakdown: {}, bankMeta: {}, bankFiles: {}, gridMonths: generateGrid(4, 2026, 6) }
+                    { id: 3, name: 'GSTR 3B (Last 12 months)', status: 'PENDING', remarks: 'Missing: Nov 2025 to Oct 2026', months: [], uploadedFiles: [], gstinBreakdown: {}, gstinFiles: {}, gridMonths: generateGrid(10, 2025, 12) },
+                    { id: 4, name: 'Bank statements (Last 6 months)', status: 'PENDING', remarks: 'Missing: May 2026 to Oct 2026', months: [], uploadedFiles: [], bankBreakdown: {}, bankMeta: {}, bankFiles: {}, gridMonths: generateGrid(4, 2026, 6) }
                 ];
             }
             return [
                 { id: 1, name: 'GST Certificate & MSME (UDAYAM)', status: 'PENDING', remarks: 'Missing', months: [], uploadedFiles: [] },
                 { id: 2, name: 'ITR, Financials & Tax Audit (AY 2024-25 to 2026-27)', status: 'PENDING', remarks: 'Pending: AY 2024-25, AY 2025-26, AY 2026-27', months: [], uploadedFiles: [], itrEntities: {}, itrInventory: [], gridMonths: ['AY 2024-25', 'AY 2025-26', 'AY 2026-27'] },
-                { id: 3, name: 'Provisional Last year till March', status: 'PENDING', remarks: 'Missing: Apr 2025 to Mar 2026', months: [], uploadedFiles: [], gridMonths: generateGrid(3, 2025, 12) },
-                { id: 4, name: 'GSTR 3B (Last 24 months)', status: 'PENDING', remarks: 'Missing: Nov 2024 to Oct 2026', months: [], uploadedFiles: [], gstinBreakdown: {}, gstinFiles: {}, gridMonths: generateGrid(10, 2024, 24) },
-                { id: 5, name: 'Bank statements (Last 12 months)', status: 'PENDING', remarks: 'Missing: Nov 2025 to Oct 2026', months: [], uploadedFiles: [], bankBreakdown: {}, bankMeta: {}, bankFiles: {}, gridMonths: generateGrid(10, 2025, 12) }
+                { id: 3, name: 'GSTR 3B (Last 24 months)', status: 'PENDING', remarks: 'Missing: Nov 2024 to Oct 2026', months: [], uploadedFiles: [], gstinBreakdown: {}, gstinFiles: {}, gridMonths: generateGrid(10, 2024, 24) },
+                { id: 4, name: 'Bank statements (Last 12 months)', status: 'PENDING', remarks: 'Missing: Nov 2025 to Oct 2026', months: [], uploadedFiles: [], bankBreakdown: {}, bankMeta: {}, bankFiles: {}, gridMonths: generateGrid(10, 2025, 12) }
             ];
         };
 
         let activeProfile = 'New Client Analysis';
         let documents = getInitialDocuments(activeProfile);
-        let expandedDocId = 4; // Open GSTR-3B by default for visibility
+        let expandedDocId = 3; // Open GSTR-3B by default for visibility
         const uploadedFileStore = {}; // Maps filename -> File object for ZIP exports
         let itrPasswords = [];
         let itrPendingTargets = ['AY 2024-25', 'AY 2025-26', 'AY 2026-27'];
@@ -250,7 +247,7 @@
         }
 
         function recalculateDocState(doc) {
-            if (doc.id === 4) {
+            if (doc.id === 3) {
                 const breakdown = doc.gstinBreakdown || {};
                 const gstinKeys = Object.keys(breakdown);
                 const allCollected = Array.from(new Set(Object.values(breakdown).flat()));
@@ -274,7 +271,7 @@
                 return { ...doc, months: allCollected, status, remarks };
             }
 
-            if (doc.id === 5) {
+            if (doc.id === 4) {
                 const breakdown = doc.bankBreakdown || {};
                 const accKeys = Object.keys(breakdown);
                 const allCollected = Array.from(new Set(Object.values(breakdown).flat()));
@@ -394,7 +391,7 @@
         function markAll(id) {
             documents = documents.map(d => {
                 if (d.id === id && d.gridMonths) {
-                    if (d.id === 4) {
+                    if (d.id === 3) {
                         let breakdown = { ...(d.gstinBreakdown || {}) };
                         const keys = Object.keys(breakdown);
                         if (keys.length === 0) {
@@ -403,7 +400,7 @@
                         }
                         keys.forEach(k => breakdown[k] = [...d.gridMonths]);
                         return recalculateDocState({ ...d, gstinBreakdown: breakdown, months: [...d.gridMonths] });
-                    } else if (d.id === 5) {
+                    } else if (d.id === 4) {
                         let breakdown = { ...(d.bankBreakdown || {}) };
                         const keys = Object.keys(breakdown);
                         if (keys.length === 0) {
@@ -570,14 +567,12 @@ Perform deep OCR across EVERY page of the uploaded document (PDF, scanned image,
 Document Categories (docId):
 1: GST Certificate or MSME / UDYAM Registration Certificate
 2: Income Tax Return (ITR-V / Acknowledgement, ITR Form PDF/JSON, Computation of Income, Audited P&L, Balance Sheet & Schedules, Tax Audit Report Form 3CA/3CB-3CD, Form 26AS / AIS, Tax Challans)
-3: Provisional Financials (last year till March)
-4: GSTR-3B Return(s) (single or multi-GSTIN, single or multi-month)
-5: Bank Account Statement (single month or consolidated multi-month statement)
+3: GSTR-3B Return(s) (single or multi-GSTIN, single or multi-month)
+4: Bank Account Statement (single month or consolidated multi-month statement)
 
 CRITICAL EXTRACTION RULES:
-- For Bank Statements (docId 5): Inspect the statement period header AND scan transaction dates across all pages. Group by unique Account Number (do NOT create duplicate entries for the same account number even if bank name is abbreviated like "SBI" on one page and "State Bank of India" on another). Return ONE entry per distinct account number in bankAccountPeriods with its clean Bank Name, exact Account Number, and EVERY individual calendar month present ("MMM YYYY", e.g., "Nov 2025", "Dec 2025"). Also include all months in periods.
-- For GSTR-3B (docId 4): Extract the exact 15-character GSTIN(s) printed inside the document and map every Return Period ("MMM YYYY", e.g. "Apr 2025") found for each GSTIN. Never invent or use placeholder GSTINs; only return GSTINs actually present in the document. If multiple GSTINs appear in a consolidated file, return a separate entry for each GSTIN in gstinPeriods.
-- For Provisional Financials (docId 3): Extract covered months as "MMM YYYY" (e.g., "Apr 2025" through "Mar 2026").
+- For Bank Statements (docId 4): Inspect the statement period header AND scan transaction dates across all pages. Group by unique Account Number (do NOT create duplicate entries for the same account number even if bank name is abbreviated like "SBI" on one page and "State Bank of India" on another). Return ONE entry per distinct account number in bankAccountPeriods with its clean Bank Name, exact Account Number, and EVERY individual calendar month present ("MMM YYYY", e.g., "Nov 2025", "Dec 2025"). Also include all months in periods.
+- For GSTR-3B (docId 3): Extract the exact 15-character GSTIN(s) printed inside the document and map every Return Period ("MMM YYYY", e.g. "Apr 2025") found for each GSTIN. Never invent or use placeholder GSTINs; only return GSTINs actually present in the document. If multiple GSTINs appear in a consolidated file, return a separate entry for each GSTIN in gstinPeriods.
 - For ITR / Financials / Tax Audit / 26AS / AIS / Challans (docId 2), execute ALL 5 forensic steps strictly:
   Pending AY Scope: ${itrPendingTargets.join(', ')}
   User-Supplied Passwords: ${passwordContext} (Never guess passwords; if file appears encrypted/unreadable, flag locked/unreadable).
@@ -788,7 +783,7 @@ CRITICAL EXTRACTION RULES:
 
                 try {
                     const extracted = await analyzeDocumentWithGemini(rawFile, forceType, item.archivePath);
-                    const targetId = forceType !== 'auto' ? parseInt(forceType, 10) : (extracted.docId || 5);
+                    const targetId = forceType !== 'auto' ? parseInt(forceType, 10) : (extracted.docId || 4);
 
                     const normalizedPeriods = (extracted.periods || [])
                         .map(normalizePeriodLabel)
@@ -798,7 +793,7 @@ CRITICAL EXTRACTION RULES:
                         if (doc.id === targetId) {
                             const updatedFiles = Array.from(new Set([...doc.uploadedFiles, displayFileName]));
 
-                            if (doc.id === 4) {
+                            if (doc.id === 3) {
                                 const breakdown = { ...(doc.gstinBreakdown || {}) };
                                 const gFiles = { ...(doc.gstinFiles || {}) };
                                 const entries = extracted.gstinPeriods || [];
@@ -812,7 +807,7 @@ CRITICAL EXTRACTION RULES:
                                     gFiles[gstin] = Array.from(new Set([...existingFiles, rawFile.name]));
                                 });
                                 return recalculateDocState({ ...doc, gstinBreakdown: breakdown, gstinFiles: gFiles, uploadedFiles: updatedFiles });
-                            } else if (doc.id === 5) {
+                            } else if (doc.id === 4) {
                                 const breakdown = { ...(doc.bankBreakdown || {}) };
                                 const meta = { ...(doc.bankMeta || {}) };
                                 const bFiles = { ...(doc.bankFiles || {}) };
@@ -957,8 +952,8 @@ CRITICAL EXTRACTION RULES:
         }
 
         async function downloadGstinZip(gstin) {
-            const doc4 = documents.find(d => d.id === 4);
-            const fileNames = (doc4 && doc4.gstinFiles && doc4.gstinFiles[gstin]) || [];
+            const doc3 = documents.find(d => d.id === 3);
+            const fileNames = (doc3 && doc3.gstinFiles && doc3.gstinFiles[gstin]) || [];
             if (fileNames.length === 0) {
                 addLog(`No uploaded files linked to GSTIN ${gstin} for ZIP export.`, 'INFO');
                 return;
@@ -1020,7 +1015,7 @@ CRITICAL EXTRACTION RULES:
                 return;
             }
             documents = documents.map(doc => {
-                if (doc.id === 4) {
+                if (doc.id === 3) {
                     const breakdown = { ...(doc.gstinBreakdown || {}) };
                     if (!breakdown[val]) breakdown[val] = [];
                     return recalculateDocState({ ...doc, gstinBreakdown: breakdown });
@@ -1041,13 +1036,13 @@ CRITICAL EXTRACTION RULES:
             ];
             documents.forEach(doc => {
                 lines.push(`${doc.id}. ${doc.name} [${doc.status}] — ${doc.remarks}`);
-                if (doc.id === 4 && doc.gstinBreakdown) {
+                if (doc.id === 3 && doc.gstinBreakdown) {
                     Object.keys(doc.gstinBreakdown).forEach(g => {
                         const collected = doc.gstinBreakdown[g] || [];
                         const missing = (doc.gridMonths || []).filter(m => !collected.includes(m));
                         lines.push(`   - GSTIN ${g}: Collected (${collected.length}/${doc.gridMonths.length}) | Missing: ${missing.length ? missing.join(', ') : 'None'}`);
                     });
-                } else if (doc.id === 5 && doc.bankBreakdown) {
+                } else if (doc.id === 4 && doc.bankBreakdown) {
                     const accKeys = Object.keys(doc.bankBreakdown);
                     accKeys.forEach(k => {
                         const label = (doc.bankMeta && doc.bankMeta[k]) || k;
@@ -1141,7 +1136,7 @@ CRITICAL EXTRACTION RULES:
                 if (isExpanded) {
                     let gridContent = '';
                     if (doc.gridMonths) {
-                        if (doc.id === 4) {
+                        if (doc.id === 3) {
                             const bKeys = Object.keys(doc.gstinBreakdown || {});
                             if (bKeys.length === 0) {
                                 gridContent = `
@@ -1183,7 +1178,7 @@ CRITICAL EXTRACTION RULES:
                                     `;
                                 });
                             }
-                        } else if (doc.id === 5) {
+                        } else if (doc.id === 4) {
                             const aKeys = Object.keys(doc.bankBreakdown || {});
                             if (aKeys.length === 0) {
                                 gridContent = `
@@ -1448,7 +1443,7 @@ CRITICAL EXTRACTION RULES:
 
                     const actionButtons = doc.gridMonths
                         ? `<div class="flex items-center space-x-2">
-                             ${doc.id === 4 ? `<button type="button" onclick="openAddGstinModal()" class="text-xs font-semibold bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 px-3 py-1.5 rounded-lg transition-colors">+ Add GSTIN</button>` : ''}
+                             ${doc.id === 3 ? `<button type="button" onclick="openAddGstinModal()" class="text-xs font-semibold bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 px-3 py-1.5 rounded-lg transition-colors">+ Add GSTIN</button>` : ''}
                              <button type="button" onclick="markAll(${doc.id})" class="text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg transition-colors">Mark All Collected</button>
                            </div>`
                         : `<button type="button" onclick="toggleManualDoc1(${doc.id})" class="text-xs font-semibold ${doc.status === 'VERIFIED' ? 'bg-amber-100 text-amber-800 hover:bg-amber-200' : 'bg-emerald-600 text-white hover:bg-emerald-700'} px-3 py-1.5 rounded-lg transition-colors">${doc.status === 'VERIFIED' ? 'Mark Pending' : 'Mark Verified'}</button>`;
